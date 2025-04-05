@@ -1,1 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pod Race Mockup</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        div { margin-bottom: 10px; }
+        input[type="number"] { width: 60px; }
+        button { margin-left: 10px; }
+        #status { white-space: pre-wrap; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div>
+        Start Race: 
+        <input id="start_users" type="number" min="1" value="1">
+        <button onclick="startRace()">Start</button>
+    </div>
+    <div>
+        Add Users (Race On): 
+        <input id="add_users" type="number" min="1" value="1">
+        <button onclick="addUsers()">Add</button>
+    </div>
+    <div>
+        Subtract Users (Race Off): 
+        <input id="subtract_off" type="number" min="1" value="1">
+        <button onclick="subtractUsersOff()">Subtract (Off)</button>
+    </div>
+    <div>
+        Subtract Users (Race On): 
+        <input id="subtract_on" type="number" min="1" value="1">
+        <button onclick="subtractUsersOn()">Subtract (On)</button>
+    </div>
+    <div id="status"></div>
 
+    <script src="script.js"></script>
+</body>
+</html>
