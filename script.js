@@ -1,6 +1,10 @@
 let isRaceRunning = false; // Tracks if a race is ongoing
 let activeUsers = []; // Array of { user_id, pod_id }
 
+// Replace 'your-pod-id' with your actual RunPod pod ID once you have it
+const SERVER_URL = "https://l7zagrwyb3oo0y-9000.proxy.runpod.net/";
+const API_KEY = "generate@123";
+
 // Start a race with the specified number of users
 async function startRace() {
     const num = parseInt(document.getElementById("start_users").value);
@@ -70,14 +74,17 @@ async function subtractUsersOn() {
     updateStatus();
 }
 
-// Send a start request to the connector
+// Send a start request to the server with the API key
 async function sendStartRequest(user_id) {
     try {
-        const response = await fetch("http://localhost:9000/start_race", {
+        const response = await fetch(`${SERVER_URL}/start_race`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id })
+            body: JSON.stringify({ user_id: user_id, key: API_KEY })
         });
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
         const data = await response.json();
         updateUserPod(user_id, data.pod_id);
     } catch (error) {
@@ -86,15 +93,15 @@ async function sendStartRequest(user_id) {
     }
 }
 
-// Subtract users by sending remove requests
+// Subtract users by sending remove requests with the API key
 async function subtractUsers(num) {
     const toRemove = activeUsers.slice(0, Math.min(num, activeUsers.length));
     for (const user of toRemove) {
         try {
-            await fetch("http://localhost:9000/remove_user", {
+            await fetch(`${SERVER_URL}/remove_user`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: user.user_id })
+                body: JSON.stringify({ user_id: user.user_id, key: API_KEY })
             });
             activeUsers = activeUsers.filter(u => u.user_id !== user.user_id);
         } catch (error) {
