@@ -7,7 +7,8 @@ function sendStartRequest() {
     fetch(SERVER_URL + "/start_race", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, key: "generate@123" })
+        body: JSON.stringify({ user_id: userId, key: "generate@123" }),
+        timeout: 60000  // 60s timeout
     })
     .then(response => {
         if (!response.ok) throw new Error(`HTTP error ${response.status}`);
@@ -15,7 +16,7 @@ function sendStartRequest() {
     })
     .then(data => {
         racers[userId] = {
-            pod_id: data.pod_id || "unknown",
+            pod_id: data.pod_id || "unknown",  // Winner pod or unknown if stopped early
             race_start: data.race_start,
             replacement_type: data.replacement_type
         };
@@ -40,17 +41,25 @@ function sendCloseRequest() {
                 key: "generate@123",
                 race_start: racers[userId].race_start,
                 replacement_type: racers[userId].replacement_type
-            })
+            }),
+            timeout: 60000  // 60s timeout
         })
         .then(response => {
             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             return response.json();
         })
         .then(data => {
-            delete racers[userId];
-            updateStatus();
+            racers[userId].pod_id = "stopped";  // Show stopped if mid-race
+            setTimeout(() => {
+                delete racers[userId];
+                updateStatus();
+            }, 1000);  // Brief delay to show "stopped"
         })
-        .catch(error => console.error("Error closing race:", error));
+        .catch(error => {
+            console.error("Error closing race:", error);
+            racers[userId].pod_id = "error";
+            updateStatus();
+        });
     } else {
         console.error("No valid race data for", userId);
     }
