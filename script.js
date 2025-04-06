@@ -1,4 +1,4 @@
-const SERVER_URL = "http://localhost:9000"; // Update if needed, e.g., your RunPod URL
+const SERVER_URL = "https://l7zagrwyb3oo0y-9000.proxy.runpod.net"; // Update if needed
 let racers = {};
 
 function sendStartRequest() {
