@@ -9,7 +9,10 @@ function sendStartRequest() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, key: "generate@123" })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+        return response.json();
+    })
     .then(data => {
         racers[userId] = {
             pod_id: data.pod_id || "unknown",
@@ -39,7 +42,10 @@ function sendCloseRequest() {
                 replacement_type: racers[userId].replacement_type
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+            return response.json();
+        })
         .then(data => {
             delete racers[userId];
             updateStatus();
