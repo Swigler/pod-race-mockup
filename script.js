@@ -4,6 +4,9 @@ let racers = {};
 function sendStartRequest() {
     const userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     console.log("Starting race for:", userId);
+    // Add to racers immediately to track the race as pending
+    racers[userId] = { race_start: null, replacement_type: null, pending: true };
+    updateStatus(); // Show the userId in the UI right away
     fetch(SERVER_URL + "/start_race", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -15,24 +18,30 @@ function sendStartRequest() {
     })
     .then(data => {
         if (data.status === "race_canceled") {
-            console.log("Race was canceled:", userId);
-            document.getElementById("status").innerHTML = `Race for ${userId} canceled`;
+            console.log("Race was canceled early:", userId);
+            delete racers[userId]; // Remove if canceled before completion
         } else {
-            racers[userId] = { race_start: data.race_start, replacement_type: data.replacement_type };
+            racers[userId] = { 
+                race_start: data.race_start, 
+                replacement_type: data.replacement_type, 
+                pending: false 
+            };
             console.log("Race started:", data);
-            updateStatus();
         }
+        updateStatus();
     })
     .catch(error => {
         console.error("Start error:", error);
         document.getElementById("status").innerHTML = "Error starting race: " + error.message;
+        delete racers[userId]; // Clean up on error
+        updateStatus();
     });
 }
 
 function sendCloseRequest() {
     const userIds = Object.keys(racers);
     if (userIds.length > 0) {
-        const userId = userIds[0]; // Closes oldest race; adjust if you want different logic
+        const userId = userIds[0]; // Closes oldest race
         console.log("Closing race for:", userId);
         fetch(SERVER_URL + "/close", {
             method: "POST",
@@ -54,7 +63,7 @@ function sendCloseRequest() {
         });
     } else {
         console.log("No race to close");
-        document.getElementById("status").innerHTML = "No race to close";
+        document.getElementById("status").innerHTML = "No active races";
     }
 }
 
