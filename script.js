@@ -23,21 +23,22 @@ function sendStartRequest() {
 function sendCloseRequest() {
     const userId = Object.keys(racers)[0];
     if (userId) {
-        console.log("Closing race for:", userId);
+        console.log("Sending close for:", userId);
         fetch(SERVER_URL + "/close", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 user_id: userId,
-                key: "generate@123",
-                race_start: racers[userId].race_start,
-                replacement_type: racers[userId].replacement_type
+                key: "generate@123"
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        })
         .then(data => {
+            console.log("Closed race for:", userId, "Response:", data);
             delete racers[userId];
-            console.log("Closed race for:", userId);
             updateStatus();
         })
         .catch(error => console.error("Error closing race:", error));
