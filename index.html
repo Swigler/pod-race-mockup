@@ -1,30 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pod Race Mockup</title>
-</head>
-<body>
-    <h1>Pod Race Control</h1>
-    
-    <div>
-        <h2>Start Race</h2>
-        <input type="number" id="startRacers" min="1" value="1">
-        <button id="startButton">Start</button>
-    </div>
-    
-    <div>
-        <h2>Close Race</h2>
-        <input type="number" id="removeOnRacers" min="1" value="1">
-        <button id="removeOnButton">Close</button>
-    </div>
-    
-    <div>
-        <h2>Status</h2>
-        <div id="status"></div>
-    </div>
-    
-    <script src="script.js"></script>
-</body>
-</html>
+import asyncio
+import time
+import pod_handler
+
+user_credits: dict = {}
+INITIAL_CREDITS = 3600  # 1 hour in seconds
+
+def log(message: str):
+    print(f"[DEBUG {time.strftime('%H:%M:%S')}] {message}")
+
+def start_tracking(user_id: str):
+    if user_id not in user_credits:
+        user_credits[user_id] = INITIAL_CREDITS
+        log(f"Started tracking credits for {user_id}: {INITIAL_CREDITS}s")
+
+def stop_tracking(user_id: str):
+    if user_id in user_credits:
+        del user_credits[user_id]
+        log(f"Stopped tracking credits for {user_id}")
+
+async def check_credits():
+    while True:
+        for user_id in list(user_credits.keys()):
+            if user_id in pod_handler.user_to_winner:
+                user_credits[user_id] -= 1
+                log(f"{user_id} credits: {user_credits[user_id]:.2f}s")
+                if user_credits[user_id] <= 0:
+                    winner_type = pod_handler.user_to_winner[user_id]
+                    log(f"Credits out for {user_id}: deleting winner {winner_type}")
+                    pod_handler.stop_pod(pod_handler.spawned_pods[winner_type], terminate=True)
+                    del pod_handler.user_to_winner[user_id]
+                    del user_credits[user_id]
+            else:
+                del user_credits[user_id]
+        await asyncio.sleep(1)
