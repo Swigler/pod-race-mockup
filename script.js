@@ -1,4 +1,4 @@
-const SERVER_URL = "https://l7zagrwyb3oo0y-9000.proxy.runpod.net";
+const SERVER_URL = "https://l7zagrwyb3oo0y-9000.proxy.runpod.net"; // Replace with your actual server URL
 let racers = {};
 
 function sendStartRequest() {
