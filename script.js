@@ -5,16 +5,18 @@ function appendDebug(message) {
     const debugDiv = document.getElementById("debug");
     if (debugDiv) {
         debugDiv.innerHTML += message + "<br>";
+    } else {
+        // Fallback to console if debug div is missing
+        console.log("Debug (no div): " + message);
     }
 }
 
 function sendStartRequest() {
     const userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     appendDebug("Starting race for: " + userId);
-    // Add to racers immediately to track the race as pending
     racers[userId] = { race_start: null, replacement_type: null, pending: true };
-    appendDebug("Racers after set: " + JSON.stringify(racers));
-    updateStatus(); // Show the userId in the UI right away
+    appendDebug("Racers set to: " + Object.keys(racers).join(", "));
+    updateStatus();
     fetch(SERVER_URL + "/start_race", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -25,31 +27,31 @@ function sendStartRequest() {
         return response.json();
     })
     .then(data => {
-        appendDebug("Start response: " + JSON.stringify(data));
+        appendDebug("Start response received");
         if (data.status === "race_canceled") {
-            appendDebug("Race was canceled early: " + userId);
-            delete racers[userId]; // Remove if canceled before completion
+            appendDebug("Race canceled early: " + userId);
+            delete racers[userId];
         } else {
             racers[userId] = { 
                 race_start: data.race_start, 
                 replacement_type: data.replacement_type, 
                 pending: false 
             };
-            appendDebug("Race started: " + JSON.stringify(data));
+            appendDebug("Race started for: " + userId);
         }
         updateStatus();
     })
     .catch(error => {
         appendDebug("Start error: " + error.message);
         document.getElementById("status").innerHTML = "Error starting race: " + error.message;
-        delete racers[userId]; // Clean up on error
+        delete racers[userId];
         updateStatus();
     });
 }
 
 function sendCloseRequest() {
     const userIds = Object.keys(racers);
-    appendDebug("Racers before close: " + JSON.stringify(racers));
+    appendDebug("Racers before close: " + userIds.join(", "));
     if (userIds.length > 0) {
         const userId = userIds[0]; // Closes oldest race
         appendDebug("Closing race for: " + userId);
@@ -63,7 +65,7 @@ function sendCloseRequest() {
             return response.json();
         })
         .then(data => {
-            appendDebug("Race closed: " + JSON.stringify(data));
+            appendDebug("Race closed for: " + userId);
             delete racers[userId];
             updateStatus();
         })
@@ -82,5 +84,8 @@ function updateStatus() {
     document.getElementById("status").innerHTML = userIds.length > 0 ? userIds.join("<br>") : "No active races";
 }
 
-document.getElementById("startButton").addEventListener("click", sendStartRequest);
-document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
+// Ensure DOM is loaded before adding event listeners
+document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById("startButton").addEventListener("click", sendStartRequest);
+    document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
+});
