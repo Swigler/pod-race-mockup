@@ -2,12 +2,34 @@
 <html>
 <head>
     <title>Pod Racer</title>
+    <!-- Basic styling—makes the shared race UI readable -->
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px; margin: 5px; }
+        div { margin: 10px 0; }
+        #debug { max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+    </style>
 </head>
 <body>
+    <!-- Buttons—unchanged, trigger start/close (e.g., 16:07:00, 16:07:12) -->
     <button id="startButton">Start Race</button>
     <button id="removeOnButton">Close</button>
-    <div id="status"></div>
-    <div id="debug"></div> <!-- Add this line -->
+    
+    <!-- User statuses—show each user’s pod or state (e.g., "User1: B (Winner)") -->
+    <div id="user1-status">Idle</div>
+    <div id="user2-status">Idle</div>
+    <div id="user3-status">Idle</div>
+    
+    <!-- Race status—shows active pods (e.g., "Active Pods: A, B, C") -->
+    <div id="race-status">No race active</div>
+    
+    <!-- Idle pods—shows count and list (e.g., "Idle: 5 - A2, B2, C2, D, E") -->
+    <div id="idle-pods">Idle: 0</div>
+    
+    <!-- Debug log—keeps all messages (e.g., 16:07:00 "Starting race") -->
+    <div id="debug"></div>
+    
+    <!-- Load script—drives the UI -->
     <script src="script.js"></script>
 </body>
 </html>
