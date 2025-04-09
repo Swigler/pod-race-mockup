@@ -1,52 +1,53 @@
-// Server URL—matches your Runpod proxy (e.g., 16:07:00 requests)
+// Server URL—new Runpod proxy for your updated pod (19:21:06 requests expected)
 const SERVER_URL = "https://iif2rplmvljk4w-9000.proxy.runpod.net";
 
-// Local state—tracks this user’s ID, shared race data from server
-let localUserId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000); // Unique per client (e.g., 'user_1743955620330_512')
-let raceState = { activeUsers: [], pool: [] }; // Holds server response—e.g., { activeUsers: ['user1', 'user2'], pool: ['A', 'A2', 'C', 'D', 'E'] }
+// Local state—tracks user ID, race data from server (19:21:06–19:21:28)
+let localUserId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000); // Unique client ID—e.g., 'user_1744140065039_565'
+let raceState = { activeUsers: [], pool: [], userToWinner: {} }; // Holds server response—e.g., { activeUsers: ['user1'], pool: ['A', 'B', 'C', 'D', 'E'], userToWinner: {'user1': 'A'} }
 
 function appendDebug(message) {
-    // Logs to #debug—same as before, tracks all actions (e.g., 16:07:00 "Starting race")
+    // Logs to #debug—tracks all actions (e.g., 19:21:06 "Starting race")
     const debugDiv = document.getElementById("debug");
     if (debugDiv) {
         debugDiv.innerHTML += message + "<br>";
     } else {
-        console.log("Debug (no div): " + message); // Fallback—keeps us sane if HTML’s off
+        console.log("Debug (no div): " + message); // Fallback if HTML’s off—keeps us sane
     }
 }
 
 function sendStartRequest() {
-    // Triggers "Start Race"—joins or starts the shared race via /start_race
-    // Called on #startButton click (e.g., 16:07:00 for User1)
+    // Triggers "Start Race"—joins or starts race via /start_race (19:21:06)
+    // Called on #startButton click
     appendDebug("Starting race for: " + localUserId);
     fetch(SERVER_URL + "/start_race", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: localUserId, key: "generate@123" }) // Matches SECRET_KEY
+        body: JSON.stringify({ user_id: localUserId, key: "generate@123" }) // Matches SECRET_KEY from website_connector
     })
     .then(response => {
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`); // E.g., 500 at 16:07:25—catches fails
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`); // Catches fails—e.g., 404 or 500
         return response.json();
     })
     .then(data => {
-        // Server response—e.g., 16:07:08, { user_id, race_start, replacement_type }
+        // Server response—e.g., 19:21:28, { user_id, race_start, replacement_type, active_users, user_to_winner }
         appendDebug("Start response received for: " + localUserId);
-        raceState.activeUsers = pod_handler.activeUsers; // Sync with server’s active users (e.g., ['user1', 'user2'])
-        raceState.pool = data.pool; // Update local pool—e.g., ['A', 'A2', 'C', 'D', 'E']
+        raceState.activeUsers = data.active_users || []; // Sync active users from server—e.g., ['user_1744140065039_565']
+        raceState.pool = data.pool || []; // Update pool—e.g., ['A', 'B', 'C', 'D', 'E']
+        raceState.userToWinner = data.user_to_winner || {}; // Map winners—e.g., {'user_1744140065039_565': 'A'}
         if (data.user_id === localUserId && data.replacement_type) {
             appendDebug("Race started for: " + localUserId + " with replacement: " + data.replacement_type);
         }
-        updateStatus(); // Refresh UI—shows all users and pods (e.g., "User1: B racing")
+        updateStatus(); // Refresh UI—shows race state (e.g., "User1: A (Winner)")
     })
     .catch(error => {
-        appendDebug("Start error: " + error.message); // Logs fails—e.g., 16:07:25, "HTTP error: 500"
+        appendDebug("Start error: " + error.message); // Logs errors—e.g., "HTTP error: 404"
         document.getElementById("status").innerHTML = "Error starting race: " + error.message;
     });
 }
 
 function sendCloseRequest() {
-    // Triggers "Close"—leaves the shared race via /close
-    // Called on #removeOnButton click (e.g., 16:07:12 for User1)
+    // Triggers "Close"—leaves race via /close (19:21:19 cleanup expected)
+    // Called on #removeOnButton click
     appendDebug("Racers before close: " + raceState.activeUsers.join(", "));
     if (raceState.activeUsers.includes(localUserId)) {
         appendDebug("Closing race for: " + localUserId);
@@ -56,55 +57,56 @@ function sendCloseRequest() {
             body: JSON.stringify({ user_id: localUserId, key: "generate@123" })
         })
         .then(response => {
-            if (!response.ok) throw new Error(`HTTP error: ${response.status}`); // Catches 500s—e.g., 16:07:25
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`); // Catches fails
             return response.json();
         })
         .then(data => {
-            // Server response—e.g., 16:07:12, { user_id, status: "closed", pool }
+            // Server response—e.g., 19:21:28 cleanup, { user_id, status: "closed", pool }
             appendDebug("Race closed for: " + localUserId);
             raceState.activeUsers = raceState.activeUsers.filter(id => id !== localUserId); // Remove local user
-            raceState.pool = data.pool; // Update pool—e.g., 16:07:14, 5 idle
+            raceState.pool = data.pool || []; // Update pool—e.g., 5 idle
+            if (raceState.userToWinner[localUserId]) {
+                delete raceState.userToWinner[localUserId]; // Clear winner if closed
+            }
             updateStatus(); // Refresh UI—e.g., "User1 left, 5 pods idle"
         })
         .catch(error => {
-            appendDebug("Close error: " + error.message); // Logs fails—e.g., 16:07:25
+            appendDebug("Close error: " + error.message);
             document.getElementById("status").innerHTML = "Error closing race: " + error.message;
         });
     } else {
-        appendDebug("No race to close for: " + localUserId); // User not in race—e.g., post-bail
+        appendDebug("No race to close for: " + localUserId); // User not in race—post-bail
     }
 }
 
 function updateStatus() {
-    // Updates UI—shows all active users, their pods, race state, and idle pods
-    // Called after start/close responses—e.g., 16:07:00, 16:07:12
+    // Updates UI—shows users, pods, race state, idle count (19:21:19–19:21:28)
     const user1Status = document.getElementById("user1-status");
     const user2Status = document.getElementById("user2-status");
     const user3Status = document.getElementById("user3-status");
     const raceStatus = document.getElementById("race-status");
     const idlePods = document.getElementById("idle-pods");
 
-    // Update each user’s status—e.g., "User1: B (Winner)"
+    // Update user statuses—e.g., "User1: A (Winner)" (19:21:19)
     user1Status.innerHTML = raceState.activeUsers[0] ? 
-        `${raceState.activeUsers[0]}: ${pod_handler.user_to_winner[raceState.activeUsers[0]] || "Racing"}` : "Idle";
+        `${raceState.activeUsers[0]}: ${raceState.userToWinner[raceState.activeUsers[0]] || "Racing"}` : "Idle";
     user2Status.innerHTML = raceState.activeUsers[1] ? 
-        `${raceState.activeUsers[1]}: ${pod_handler.user_to_winner[raceState.activeUsers[1]] || "Racing"}` : "Idle";
+        `${raceState.activeUsers[1]}: ${raceState.userToWinner[raceState.activeUsers[1]] || "Racing"}` : "Idle";
     user3Status.innerHTML = raceState.activeUsers[2] ? 
-        `${raceState.activeUsers[2]}: ${pod_handler.user_to_winner[raceState.activeUsers[2]] || "Racing"}` : "Idle";
+        `${raceState.activeUsers[2]}: ${raceState.userToWinner[raceState.activeUsers[2]] || "Racing"}` : "Idle";
 
-    // Show racing pods—e.g., "Active Pods: A, B, C" (16:07:00)
-    const racingPods = raceState.pool.filter(pt => pt in pod_handler.spawned_pods && 
-        !Object.values(pod_handler.user_to_winner).includes(pt));
+    // Show racing pods—e.g., "Active Pods: B, C" (19:21:06)
+    const racingPods = raceState.pool.filter(pt => !Object.values(raceState.userToWinner).includes(pt));
     raceStatus.innerHTML = raceState.activeUsers.length > 0 ? 
         `Active Pods: ${racingPods.join(", ") || "None"}` : "No race active";
 
-    // Show idle pods—e.g., "Idle: 5 - A2, B2, C2, D, E" (16:07:14)
-    const idleCount = raceState.pool.length - Object.keys(pod_handler.user_to_winner).length;
+    // Show idle pods—e.g., "Idle: 4 - B, C, D, E" (19:21:28)
+    const idleCount = raceState.pool.length - Object.keys(raceState.userToWinner).length;
     idlePods.innerHTML = `Idle: ${idleCount} - ${raceState.pool.filter(pt => 
-        !Object.values(pod_handler.user_to_winner).includes(pt)).join(", ")}`;
+        !Object.values(raceState.userToWinner).includes(pt)).join(", ")}`;
 }
 
-// Hook up buttons—same IDs as before, now drive shared race
+// Hook up buttons—drives shared race (19:21:06 triggers)
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("startButton").addEventListener("click", sendStartRequest);
     document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
