@@ -1,5 +1,5 @@
 // Server URL—points to your Runpod proxy (e.g., matches 16:07:00 requests)
-const SERVER_URL = "https://jz8iuuveunfnjy-9000.proxy.runpod.net";
+const SERVER_URL = "https://iif2rplmvljk4w-9000.proxy.runpod.net/";
 
 // Local state—tracks 3 distinct user IDs and race data
 const baseUserId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000); // Base ID per load (e.g., 'user_1744250886899_663')
