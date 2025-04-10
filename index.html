@@ -2,34 +2,49 @@
 <html>
 <head>
     <title>Pod Racer</title>
-    <!-- Basic styling—makes the shared race UI readable -->
+    <!-- Basic styling—unchanged, keeps UI clean and readable -->
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         button { padding: 10px; margin: 5px; }
         div { margin: 10px 0; }
         #debug { max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+        input { margin: 5px; }
     </style>
 </head>
 <body>
-    <!-- Buttons—unchanged, trigger start/close (e.g., 16:07:00, 16:07:12) -->
+    <!-- Buttons—trigger start/close actions, same as before -->
     <button id="startButton">Start Race</button>
     <button id="removeOnButton">Close</button>
     
-    <!-- User statuses—show each user’s pod or state (e.g., "User1: B (Winner)") -->
+    <!-- User statuses—display state for 3 distinct users (e.g., "user_1744250886899_663_1: A (Winner)") -->
     <div id="user1-status">Idle</div>
     <div id="user2-status">Idle</div>
     <div id="user3-status">Idle</div>
     
-    <!-- Race status—shows active pods (e.g., "Active Pods: A, B, C") -->
+    <!-- Race status—shows active pods during race (e.g., "Active Pods: A, B, C") -->
     <div id="race-status">No race active</div>
     
-    <!-- Idle pods—shows count and list (e.g., "Idle: 5 - A2, B2, C2, D, E") -->
+    <!-- Idle pods—shows count and list of paused pods (e.g., "Idle: 5 - A2, B2, C2, D, E") -->
     <div id="idle-pods">Idle: 0</div>
     
-    <!-- Debug log—keeps all messages (e.g., 16:07:00 "Starting race") -->
+    <!-- Credit control—new, allows modifying credits for testing stop behavior -->
+    <div>
+        <label>User 1 Credits: <input id="credits1" type="number" value="3600" min="0"></label>
+        <button id="setCredits1">Set</button>
+    </div>
+    <div>
+        <label>User 2 Credits: <input id="credits2" type="number" value="3600" min="0"></label>
+        <button id="setCredits2">Set</button>
+    </div>
+    <div>
+        <label>User 3 Credits: <input id="credits3" type="number" value="3600" min="0"></label>
+        <button id="setCredits3">Set</button>
+    </div>
+    
+    <!-- Debug log—tracks all actions (e.g., "Starting race for: user_1744250886899_663_1") -->
     <div id="debug"></div>
     
-    <!-- Load script—drives the UI -->
+    <!-- Load script—drives the updated UI and logic -->
     <script src="script.js"></script>
 </body>
 </html>
