@@ -1,113 +1,145 @@
-// Server URL—new Runpod proxy for your updated pod (19:21:06 requests expected)
-const SERVER_URL = "https://iif2rplmvljk4w-9000.proxy.runpod.net";
+// Server URL—points to your Runpod proxy (e.g., matches 16:07:00 requests)
+const SERVER_URL = "https://jz8iuuveunfnjy-9000.proxy.runpod.net";
 
-// Local state—tracks user ID, race data from server (19:21:06–19:21:28)
-let localUserId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000); // Unique client ID—e.g., 'user_1744140065039_565'
-let raceState = { activeUsers: [], pool: [], userToWinner: {} }; // Holds server response—e.g., { activeUsers: ['user1'], pool: ['A', 'B', 'C', 'D', 'E'], userToWinner: {'user1': 'A'} }
+// Local state—tracks 3 distinct user IDs and race data
+const baseUserId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000); // Base ID per load (e.g., 'user_1744250886899_663')
+const userIds = [baseUserId + "_1", baseUserId + "_2", baseUserId + "_3"]; // 3 unique IDs (e.g., '_1', '_2', '_3')
+let clickCount = 0; // Tracks "Start Race" clicks to add users (1→3)
+let raceState = { activeUsers: [], pool: [], user_to_winner: {} }; // Syncs with server (e.g., { activeUsers: ['user_1', 'user_2'], pool: ['A', 'A2'] })
 
 function appendDebug(message) {
-    // Logs to #debug—tracks all actions (e.g., 19:21:06 "Starting race")
+    // Logs to #debug—tracks all actions (e.g., "Starting race for: user_1744250886899_663_1")
     const debugDiv = document.getElementById("debug");
     if (debugDiv) {
         debugDiv.innerHTML += message + "<br>";
+        debugDiv.scrollTop = debugDiv.scrollHeight; // Auto-scrolls to latest
     } else {
-        console.log("Debug (no div): " + message); // Fallback if HTML’s off—keeps us sane
+        console.log("Debug (no div): " + message); // Fallback if UI fails
     }
 }
 
 function sendStartRequest() {
-    // Triggers "Start Race"—joins or starts race via /start_race (19:21:06)
-    // Called on #startButton click
-    appendDebug("Starting race for: " + localUserId);
-    fetch(SERVER_URL + "/start_race", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: localUserId, key: "generate@123" }) // Matches SECRET_KEY from website_connector
-    })
-    .then(response => {
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`); // Catches fails—e.g., 404 or 500
-        return response.json();
-    })
-    .then(data => {
-        // Server response—e.g., 19:21:28, { user_id, race_start, replacement_type, active_users, user_to_winner }
-        appendDebug("Start response received for: " + localUserId);
-        raceState.activeUsers = data.active_users || []; // Sync active users from server—e.g., ['user_1744140065039_565']
-        raceState.pool = data.pool || []; // Update pool—e.g., ['A', 'B', 'C', 'D', 'E']
-        raceState.userToWinner = data.user_to_winner || {}; // Map winners—e.g., {'user_1744140065039_565': 'A'}
-        if (data.user_id === localUserId && data.replacement_type) {
-            appendDebug("Race started for: " + localUserId + " with replacement: " + data.replacement_type);
+    // Triggers "Start Race"—sends /start_race for 1-3 users based on clicks
+    clickCount = Math.min(clickCount + 1, 3); // Increments up to 3 users
+    appendDebug(`Starting race for ${clickCount} user(s)`);
+    
+    // Send requests for active users (e.g., 1st click: user_1, 2nd: user_1+2, 3rd: user_1+2+3)
+    userIds.slice(0, clickCount).forEach(userId => {
+        if (!raceState.activeUsers.includes(userId)) { // Avoid re-sending for already active users
+            appendDebug("Starting race for: " + userId);
+            fetch(SERVER_URL + "/start_race", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId, key: "generate@123" }) // Matches SECRET_KEY in server.py
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`); // Catches server errors (e.g., 500)
+                return response.json();
+            })
+            .then(data => {
+                appendDebug("Start response for: " + userId);
+                raceState.activeUsers = data.active_users; // Sync active users from server
+                raceState.pool = data.pool; // Update pool (e.g., ['A', 'A2', 'C', 'D', 'E'])
+                raceState.user_to_winner = data.user_to_winner; // Sync winners (e.g., { 'user_1': 'A' })
+                updateStatus(); // Refresh UI with latest state
+            })
+            .catch(error => {
+                appendDebug("Start error for " + userId + ": " + error.message); // Logs failures (e.g., "Failed to fetch")
+            });
         }
-        updateStatus(); // Refresh UI—shows race state (e.g., "User1: A (Winner)")
-    })
-    .catch(error => {
-        appendDebug("Start error: " + error.message); // Logs errors—e.g., "HTTP error: 404"
-        document.getElementById("status").innerHTML = "Error starting race: " + error.message;
     });
 }
 
 function sendCloseRequest() {
-    // Triggers "Close"—leaves race via /close (19:21:19 cleanup expected)
-    // Called on #removeOnButton click
+    // Triggers "Close"—sends /close for all active local users
     appendDebug("Racers before close: " + raceState.activeUsers.join(", "));
-    if (raceState.activeUsers.includes(localUserId)) {
-        appendDebug("Closing race for: " + localUserId);
-        fetch(SERVER_URL + "/close", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: localUserId, key: "generate@123" })
-        })
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error: ${response.status}`); // Catches fails
-            return response.json();
-        })
-        .then(data => {
-            // Server response—e.g., 19:21:28 cleanup, { user_id, status: "closed", pool }
-            appendDebug("Race closed for: " + localUserId);
-            raceState.activeUsers = raceState.activeUsers.filter(id => id !== localUserId); // Remove local user
-            raceState.pool = data.pool || []; // Update pool—e.g., 5 idle
-            if (raceState.userToWinner[localUserId]) {
-                delete raceState.userToWinner[localUserId]; // Clear winner if closed
-            }
-            updateStatus(); // Refresh UI—e.g., "User1 left, 5 pods idle"
-        })
-        .catch(error => {
-            appendDebug("Close error: " + error.message);
-            document.getElementById("status").innerHTML = "Error closing race: " + error.message;
-        });
-    } else {
-        appendDebug("No race to close for: " + localUserId); // User not in race—post-bail
+    raceState.activeUsers.forEach(userId => {
+        if (userIds.includes(userId)) { // Only close users from this client
+            appendDebug("Closing race for: " + userId);
+            fetch(SERVER_URL + "/close", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId, key: "generate@123" })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                appendDebug("Race closed for: " + userId);
+                raceState.activeUsers = raceState.activeUsers.filter(id => id !== userId); // Remove locally
+                raceState.pool = data.pool; // Update pool from server
+                if (userId in raceState.user_to_winner) delete raceState.user_to_winner[userId]; // Clear winner
+                updateStatus(); // Refresh UI
+            })
+            .catch(error => {
+                appendDebug("Close error for " + userId + ": " + error.message);
+            });
+        }
+    });
+    clickCount = 0; // Reset for next race cycle
+}
+
+function setCredits(userIndex) {
+    // Sets credits for a user—new, allows testing stop behavior
+    const creditsInput = document.getElementById(`credits${userIndex + 1}`);
+    const userId = userIds[userIndex];
+    const credits = parseInt(creditsInput.value, 10);
+    if (isNaN(credits) || credits < 0) {
+        appendDebug(`Invalid credits for ${userId}: ${creditsInput.value}`);
+        return;
     }
+    
+    // Send custom credits to server via a new /set_credits endpoint
+    appendDebug(`Setting credits for ${userId} to ${credits}s`);
+    fetch(SERVER_URL + "/set_credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, credits: credits, key: "generate@123" })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        appendDebug(`Credits set for ${userId}: ${data.credits}s`);
+    })
+    .catch(error => {
+        appendDebug(`Set credits error for ${userId}: ${error.message}`);
+    });
 }
 
 function updateStatus() {
-    // Updates UI—shows users, pods, race state, idle count (19:21:19–19:21:28)
-    const user1Status = document.getElementById("user1-status");
-    const user2Status = document.getElementById("user2-status");
-    const user3Status = document.getElementById("user3-status");
+    // Updates UI—reflects 3 users, race state, and idle pods
+    const userStatuses = [document.getElementById("user1-status"), 
+                          document.getElementById("user2-status"), 
+                          document.getElementById("user3-status")];
     const raceStatus = document.getElementById("race-status");
     const idlePods = document.getElementById("idle-pods");
 
-    // Update user statuses—e.g., "User1: A (Winner)" (19:21:19)
-    user1Status.innerHTML = raceState.activeUsers[0] ? 
-        `${raceState.activeUsers[0]}: ${raceState.userToWinner[raceState.activeUsers[0]] || "Racing"}` : "Idle";
-    user2Status.innerHTML = raceState.activeUsers[1] ? 
-        `${raceState.activeUsers[1]}: ${raceState.userToWinner[raceState.activeUsers[1]] || "Racing"}` : "Idle";
-    user3Status.innerHTML = raceState.activeUsers[2] ? 
-        `${raceState.activeUsers[2]}: ${raceState.userToWinner[raceState.activeUsers[2]] || "Racing"}` : "Idle";
+    // Update each user’s status—shows "Idle" or their winner/racing state
+    userStatuses.forEach((statusDiv, index) => {
+        const userId = userIds[index];
+        statusDiv.innerHTML = raceState.activeUsers.includes(userId) ? 
+            `${userId}: ${raceState.user_to_winner[userId] || "Racing"}` : "Idle";
+    });
 
-    // Show racing pods—e.g., "Active Pods: B, C" (19:21:06)
-    const racingPods = raceState.pool.filter(pt => !Object.values(raceState.userToWinner).includes(pt));
+    // Show racing pods—excludes winners (e.g., "Active Pods: D, E" while A, B, C are winners)
+    const racingPods = raceState.pool.filter(pt => !Object.values(raceState.user_to_winner).includes(pt));
     raceStatus.innerHTML = raceState.activeUsers.length > 0 ? 
         `Active Pods: ${racingPods.join(", ") || "None"}` : "No race active";
 
-    // Show idle pods—e.g., "Idle: 4 - B, C, D, E" (19:21:28)
-    const idleCount = raceState.pool.length - Object.keys(raceState.userToWinner).length;
+    // Show idle pods—count and list of paused pods (e.g., "Idle: 5 - D, E, A2, B2, C2")
+    const idleCount = raceState.pool.length - Object.keys(raceState.user_to_winner).length;
     idlePods.innerHTML = `Idle: ${idleCount} - ${raceState.pool.filter(pt => 
-        !Object.values(raceState.userToWinner).includes(pt)).join(", ")}`;
+        !Object.values(raceState.user_to_winner).includes(pt)).join(", ") || "None"}`;
 }
 
-// Hook up buttons—drives shared race (19:21:06 triggers)
+// Hook up buttons—start/close and set credits for testing
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("startButton").addEventListener("click", sendStartRequest);
     document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
+    document.getElementById("setCredits1").addEventListener("click", () => setCredits(0));
+    document.getElementById("setCredits2").addEventListener("click", () => setCredits(1));
+    document.getElementById("setCredits3").addEventListener("click", () => setCredits(2));
 });
