@@ -90,11 +90,20 @@ function setCredits(userIndex) {
         body: JSON.stringify({ user_id: userId, credits: credits, key: "generate@123" })
     })
     .then(response => {
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        if (!response.ok) {
+            if (response.status === 404) {
+                appendDebug(`No winner assigned to ${userId} yet—run a race first`);
+            } else {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
+            return null;
+        }
         return response.json();
     })
     .then(data => {
-        appendDebug(`Credits set for ${userId}: ${data.credits}s`);
+        if (data) {
+            appendDebug(`Credits set for ${userId}: ${data.credits}s`);
+        }
     })
     .catch(error => {
         appendDebug(`Set credits error for ${userId}: ${error.message}`);
