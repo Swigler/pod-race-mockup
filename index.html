@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Pod Racer</title>
-    <!-- Basic styling—unchanged, keeps UI clean and readable -->
+    <!-- Basic styling—keeps UI clean and readable -->
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         button { padding: 10px; margin: 5px; }
@@ -12,7 +12,7 @@
     </style>
 </head>
 <body>
-    <!-- Buttons—trigger start/close actions, same as before -->
+    <!-- Buttons—trigger start/close actions -->
     <button id="startButton">Start Race</button>
     <button id="removeOnButton">Close</button>
     
@@ -27,7 +27,7 @@
     <!-- Idle pods—shows count and list of paused pods (e.g., "Idle: 5 - A2, B2, C2, D, E") -->
     <div id="idle-pods">Idle: 0</div>
     
-    <!-- Credit control—new, allows modifying credits for testing stop behavior -->
+    <!-- Credit control—allows modifying credits to unblock users and test stop behavior -->
     <div>
         <label>User 1 Credits: <input id="credits1" type="number" value="3600" min="0"></label>
         <button id="setCredits1">Set</button>
@@ -44,7 +44,7 @@
     <!-- Debug log—tracks all actions (e.g., "Starting race for: user_1744250886899_663_1") -->
     <div id="debug"></div>
     
-    <!-- Load script—drives the updated UI and logic -->
+    <!-- Load script—drives the UI and logic -->
     <script src="script.js"></script>
 </body>
 </html>
