@@ -33,9 +33,9 @@ function sendStartRequest() {
             })
             .then(data => {
                 appendDebug("Start response for: " + userId);
-                raceState.activeUsers = data.active_users || [];
-                raceState.pool = data.pool || [];
-                raceState.user_to_winner = data.user_to_winner || {};
+                raceState.activeUsers = Array.isArray(data.active_users) ? data.active_users : [];
+                raceState.pool = Array.isArray(data.pool) ? data.pool : [];
+                raceState.user_to_winner = data.user_to_winner && typeof data.user_to_winner === 'object' ? data.user_to_winner : {};
                 updateStatus();
             })
             .catch(error => {
@@ -62,7 +62,7 @@ function sendCloseRequest() {
             .then(data => {
                 appendDebug("Race closed for: " + userId);
                 raceState.activeUsers = raceState.activeUsers.filter(id => id !== userId);
-                raceState.pool = data.pool || [];
+                raceState.pool = Array.isArray(data.pool) ? data.pool : [];
                 if (userId in raceState.user_to_winner) delete raceState.user_to_winner[userId];
                 updateStatus();
             })
