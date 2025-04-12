@@ -1,22 +1,26 @@
-const SERVER_URL = "https://u962699roq0mvb-9000.proxy.runpod.net";  // Change if running locally
-let racers = {};
+// Server URL (update to match your FastAPI server)
+const SERVER_URL = "https://u962699roq0mvb-9000.proxy.runpod.net";
+let racers = {};  // Tracks active races
 
 function appendDebug(message) {
+    // Add debug message to the debug div or console
     const debugDiv = document.getElementById("debug");
     if (debugDiv) {
         debugDiv.innerHTML += message + "<br>";
     } else {
-        // Fallback to console if debug div is missing
         console.log("Debug (no div): " + message);
     }
 }
 
 function sendStartRequest() {
+    // Generate a unique user ID
     const userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     appendDebug("Starting race for: " + userId);
     racers[userId] = { race_start: null, replacement_type: null, pending: true };
     appendDebug("Racers set to: " + Object.keys(racers).join(", "));
     updateStatus();
+
+    // Send start race request to the server
     fetch(SERVER_URL + "/start_race", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -28,17 +32,12 @@ function sendStartRequest() {
     })
     .then(data => {
         appendDebug("Start response received");
-        if (data.status === "race_canceled") {
-            appendDebug("Race canceled early: " + userId);
-            delete racers[userId];
-        } else {
-            racers[userId] = { 
-                race_start: data.race_start, 
-                replacement_type: data.replacement_type, 
-                pending: false 
-            };
-            appendDebug("Race started for: " + userId);
-        }
+        racers[userId] = { 
+            race_start: data.race_start, 
+            replacement_type: data.replacement_type, 
+            pending: false 
+        };
+        appendDebug("Race started for: " + userId);
         updateStatus();
     })
     .catch(error => {
@@ -50,10 +49,11 @@ function sendStartRequest() {
 }
 
 function sendCloseRequest() {
+    // Close the oldest active race
     const userIds = Object.keys(racers);
     appendDebug("Racers before close: " + userIds.join(", "));
     if (userIds.length > 0) {
-        const userId = userIds[0]; // Closes oldest race
+        const userId = userIds[0];
         appendDebug("Closing race for: " + userId);
         fetch(SERVER_URL + "/close", {
             method: "POST",
@@ -80,11 +80,12 @@ function sendCloseRequest() {
 }
 
 function updateStatus() {
+    // Update the status div with active user IDs
     const userIds = Object.keys(racers);
     document.getElementById("status").innerHTML = userIds.length > 0 ? userIds.join("<br>") : "No active races";
 }
 
-// Ensure DOM is loaded before adding event listeners
+// Add event listeners once the DOM is loaded
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("startButton").addEventListener("click", sendStartRequest);
     document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
