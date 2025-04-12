@@ -1,9 +1,7 @@
-// Server URL (update to match your FastAPI server)
 const SERVER_URL = "https://u962699roq0mvb-9000.proxy.runpod.net";
-let racers = {};  // Tracks active races
+let racers = {};
 
 function appendDebug(message) {
-    // Add debug message to the debug div or console
     const debugDiv = document.getElementById("debug");
     if (debugDiv) {
         debugDiv.innerHTML += message + "<br>";
@@ -13,7 +11,6 @@ function appendDebug(message) {
 }
 
 function sendStartRequest() {
-    // Generate a unique user ID
     const userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     appendDebug("Starting race for: " + userId);
     racers[userId] = { race_start: null, pending: true };
@@ -25,7 +22,9 @@ function sendStartRequest() {
         body: JSON.stringify({ user_id: userId, key: "generate@123" })
     })
     .then(response => {
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+        }
         return response.json();
     })
     .then(data => {
@@ -46,8 +45,8 @@ function sendStartRequest() {
         updateButtonState();
     })
     .catch(error => {
-        appendDebug("Start error: " + error.message);
-        document.getElementById("status").innerHTML = "Error starting race: " + error.message;
+        appendDebug(`Start error: ${error.message}`);
+        document.getElementById("status").innerHTML = `Error starting race: ${error.message}`;
         delete racers[userId];
         updateStatus();
         updateButtonState();
@@ -55,11 +54,10 @@ function sendStartRequest() {
 }
 
 function sendCloseRequest() {
-    // Close the oldest active race
     const userIds = Object.keys(racers);
     appendDebug("Racers before close: " + userIds.join(", "));
     if (userIds.length > 0) {
-        const userId = userIds[0]; // Closes oldest race
+        const userId = userIds[0];
         appendDebug("Closing race for: " + userId);
         fetch(SERVER_URL + "/close", {
             method: "POST",
@@ -67,7 +65,9 @@ function sendCloseRequest() {
             body: JSON.stringify({ user_id: userId, key: "generate@123" })
         })
         .then(response => {
-            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+            }
             return response.json();
         })
         .then(data => {
@@ -90,13 +90,11 @@ function sendCloseRequest() {
 }
 
 function updateStatus() {
-    // Update the status div with active user IDs
     const userIds = Object.keys(racers);
     document.getElementById("status").innerHTML = userIds.length > 0 ? userIds.join("<br>") : "No active races";
 }
 
 function updateButtonState() {
-    // Disable the close button if no races are active
     const closeButton = document.getElementById("removeOnButton");
     closeButton.disabled = Object.keys(racers).length === 0;
 }
