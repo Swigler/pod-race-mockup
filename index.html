@@ -2,63 +2,62 @@
 <html>
 <head>
     <title>Pod Racer</title>
-    <!-- Styling—clean UI, enhanced debug log visibility -->
+    <!-- Styling for clean UI, improved debug log visibility -->
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        button { padding: 10px; margin: 5px; }
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f9f9f9; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
         div { margin: 10px 0; }
-        #debug { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; font-size: 12px; }
-        .debug-error { color: red; }
-        input { margin: 5px; }
-        #failure-status { color: red; }
+        #debug { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; font-size: 12px; background-color: #fff; }
+        .debug-error { color: red; font-weight: bold; }
+        input { margin: 5px; padding: 5px; }
+        #failure-status { color: red; font-weight: bold; }
+        .status-box { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .credits-box { display: inline-block; margin-right: 20px; }
     </style>
 </head>
 <body>
-    <!-- Instructions—guides users for multi-user races -->
+    <!-- Instructions for multi-user races -->
     <div>Rapidly click "Start Race" or use "Start All" for multi-user races.</div>
     
-    <!-- Race controls—start/close races -->
+    <!-- Race control buttons -->
     <button id="startButton">Start Race</button>
     <button id="startAllButton">Start All Users</button>
     <button id="removeOnButton">Close</button>
     
-    <!-- User statuses—shows state for 3 users (e.g., "user_1744250886899_663_1: A (Winner)") -->
-    <div id="user1-status">Idle</div>
-    <div id="user2-status">Idle</div>
-    <div id="user3-status">Idle</div>
+    <!-- User status displays -->
+    <div id="user1-status" class="status-box">Idle</div>
+    <div id="user2-status" class="status-box">Idle</div>
+    <div id="user3-status" class="status-box">Idle</div>
     
-    <!-- Credit displays—shows real-time balances (e.g., "Credits: 3599s") -->
-    <div id="user1-credits">Credits: 3600s</div>
-    <div id="user2-credits">Credits: 3600s</div>
-    <div id="user3-credits">Credits: 3600s</div>
+    <!-- Credit displays -->
+    <div id="user1-credits" class="credits-box">Credits: 3600s</div>
+    <div id="user2-credits" class="credits-box">Credits: 3600s</div>
+    <div id="user3-credits" class="credits-box">Credits: 3600s</div>
     
-    <!-- Race status—active pods (e.g., "Active Pods: A, B, C") -->
-    <div id="race-status">No race active</div>
-    
-    <!-- Idle pods—count and list (e.g., "Idle: 5 - A2, B2, C2, D, E") -->
-    <div id="idle-pods">Idle: 0</div>
-    
-    <!-- Failure status—shows pod failures (e.g., "Failure: HTTP error: 500") -->
+    <!-- Race and pod status -->
+    <div id="race-status" class="status-box">No race active</div>
+    <div id="idle-pods" class="status-box">Idle: 0</div>
     <div id="failure-status">No failures</div>
     
-    <!-- Credit controls—sets credits to unblock users -->
-    <div>
+    <!-- Credit input controls -->
+    <div class="credits-box">
         <label>User 1 Credits: <input id="credits1" type="number" value="3600" min="0"></label>
         <button id="setCredits1">Set</button>
     </div>
-    <div>
+    <div class="credits-box">
         <label>User 2 Credits: <input id="credits2" type="number" value="3600" min="0"></label>
         <button id="setCredits2">Set</button>
     </div>
-    <div>
+    <div class="credits-box">
         <label>User 3 Credits: <input id="credits3" type="number" value="3600" min="0"></label>
         <button id="setCredits3">Set</button>
     </div>
     
-    <!-- Debug log—tracks actions (e.g., "Starting race for: user_1744250886899_663_1") -->
+    <!-- Debug log output -->
     <div id="debug"></div>
     
-    <!-- Load script—drives UI and logic -->
+    <!-- Load client-side logic -->
     <script src="script.js"></script>
 </body>
 </html>
