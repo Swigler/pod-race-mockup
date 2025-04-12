@@ -8,7 +8,7 @@ function appendDebug(message) {
     if (debugDiv) {
         debugDiv.innerHTML += message + "<br>";
     } else {
-        console.log("Debug (no div): " + message);
+        console.log("Debug: " + message);
     }
 }
 
@@ -16,8 +16,9 @@ function sendStartRequest() {
     // Generate a unique user ID
     const userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     appendDebug("Starting race for: " + userId);
-    racers[userId] = { race_start: null, replacement_type: null, pending: true };
+    racers[userId] = { race_start: null, pending: true };
     updateStatus();
+    updateButtonState();
     fetch(SERVER_URL + "/start_race", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -34,19 +35,22 @@ function sendStartRequest() {
             delete racers[userId];
         } else {
             racers[userId] = { 
-                race_start: data.race_start, 
-                replacement_type: data.replacement_type, 
+                race_start: Date.now(), 
+                winner: data.winner, 
+                pods_raced: data.pods_raced, 
                 pending: false 
             };
-            appendDebug("Race started for: " + userId);
+            appendDebug(`Race started for: ${userId}, Winner: ${data.winner}, Pods: ${data.pods_raced.join(", ")}`);
         }
         updateStatus();
+        updateButtonState();
     })
     .catch(error => {
         appendDebug("Start error: " + error.message);
         document.getElementById("status").innerHTML = "Error starting race: " + error.message;
         delete racers[userId];
         updateStatus();
+        updateButtonState();
     });
 }
 
@@ -70,14 +74,18 @@ function sendCloseRequest() {
             appendDebug("Race closed for: " + userId);
             delete racers[userId];
             updateStatus();
+            updateButtonState();
         })
         .catch(error => {
             appendDebug("Close error: " + error.message);
             document.getElementById("status").innerHTML = "Error closing race: " + error.message;
+            updateStatus();
+            updateButtonState();
         });
     } else {
         appendDebug("No race to close");
         document.getElementById("status").innerHTML = "No active races";
+        updateButtonState();
     }
 }
 
@@ -87,8 +95,14 @@ function updateStatus() {
     document.getElementById("status").innerHTML = userIds.length > 0 ? userIds.join("<br>") : "No active races";
 }
 
-// Add event listeners once the DOM is loaded
+function updateButtonState() {
+    // Disable the close button if no races are active
+    const closeButton = document.getElementById("removeOnButton");
+    closeButton.disabled = Object.keys(racers).length === 0;
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("startButton").addEventListener("click", sendStartRequest);
     document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
+    updateButtonState();
 });
