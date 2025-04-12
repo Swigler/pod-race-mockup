@@ -2,32 +2,46 @@
 <html>
 <head>
     <title>Pod Racer</title>
-    <!-- Basic styling—keeps UI clean and readable -->
+    <!-- Styling—clean UI, enhanced debug log visibility -->
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         button { padding: 10px; margin: 5px; }
         div { margin: 10px 0; }
-        #debug { max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+        #debug { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; font-size: 12px; }
+        .debug-error { color: red; }
         input { margin: 5px; }
+        #failure-status { color: red; }
     </style>
 </head>
 <body>
-    <!-- Buttons—trigger start/close actions -->
+    <!-- Instructions—guides users for multi-user races -->
+    <div>Rapidly click "Start Race" or use "Start All" for multi-user races.</div>
+    
+    <!-- Race controls—start/close races -->
     <button id="startButton">Start Race</button>
+    <button id="startAllButton">Start All Users</button>
     <button id="removeOnButton">Close</button>
     
-    <!-- User statuses—display state for 3 distinct users (e.g., "user_1744250886899_663_1: A (Winner)") -->
+    <!-- User statuses—shows state for 3 users (e.g., "user_1744250886899_663_1: A (Winner)") -->
     <div id="user1-status">Idle</div>
     <div id="user2-status">Idle</div>
     <div id="user3-status">Idle</div>
     
-    <!-- Race status—shows active pods during race (e.g., "Active Pods: A, B, C") -->
+    <!-- Credit displays—shows real-time balances (e.g., "Credits: 3599s") -->
+    <div id="user1-credits">Credits: 3600s</div>
+    <div id="user2-credits">Credits: 3600s</div>
+    <div id="user3-credits">Credits: 3600s</div>
+    
+    <!-- Race status—active pods (e.g., "Active Pods: A, B, C") -->
     <div id="race-status">No race active</div>
     
-    <!-- Idle pods—shows count and list of paused pods (e.g., "Idle: 5 - A2, B2, C2, D, E") -->
+    <!-- Idle pods—count and list (e.g., "Idle: 5 - A2, B2, C2, D, E") -->
     <div id="idle-pods">Idle: 0</div>
     
-    <!-- Credit control—allows modifying credits to unblock users and test stop behavior -->
+    <!-- Failure status—shows pod failures (e.g., "Failure: HTTP error: 500") -->
+    <div id="failure-status">No failures</div>
+    
+    <!-- Credit controls—sets credits to unblock users -->
     <div>
         <label>User 1 Credits: <input id="credits1" type="number" value="3600" min="0"></label>
         <button id="setCredits1">Set</button>
@@ -41,10 +55,10 @@
         <button id="setCredits3">Set</button>
     </div>
     
-    <!-- Debug log—tracks all actions (e.g., "Starting race for: user_1744250886899_663_1") -->
+    <!-- Debug log—tracks actions (e.g., "Starting race for: user_1744250886899_663_1") -->
     <div id="debug"></div>
     
-    <!-- Load script—drives the UI and logic -->
+    <!-- Load script—drives UI and logic -->
     <script src="script.js"></script>
 </body>
 </html>
