@@ -63,7 +63,7 @@ async function sendCloseRequest() {
     if (userIds.length > 0) {
         const userId = userIds[0];
         appendDebug("Closing race for: " + userId);
-        document.getElementById("removeOnButton").disabled = true; // Disable during request
+        document.getElementById("removeOnButton").disabled = true;
         try {
             const response = await fetch(SERVER_URL + "/close", {
                 method: "POST",
@@ -78,7 +78,7 @@ async function sendCloseRequest() {
             document.getElementById("status").innerHTML = "Error closing race: " + error.message;
         }
         updateStatus();
-        updateButtonState(); // Re-evaluate button state
+        updateButtonState();
     } else {
         appendDebug("No race to close");
         document.getElementById("status").innerHTML = "No active races";
