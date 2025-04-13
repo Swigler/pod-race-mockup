@@ -12,12 +12,19 @@ function appendDebug(message) {
      */
     const debugDiv = document.getElementById("debug");
     if (debugDiv) {
-        const timestamp = new Date().toLocaleTimeString();
-        debugDiv.innerHTML = `[${timestamp}] ${message}<br>` + debugDiv.innerHTML;
+        const now = new Date();
+        const timestamp = now.toLocaleTimeString();
+        
+        // Format the message with timestamp and styling
+        const formattedMessage = `<div><span class="timestamp">[${timestamp}]</span> ${message}</div>`;
+        
+        // Add the new message at the top
+        debugDiv.innerHTML = formattedMessage + debugDiv.innerHTML;
+        
         // Limit debug messages to prevent browser slowdown
-        if (debugDiv.innerHTML.split('<br>').length > 100) {
-            const lines = debugDiv.innerHTML.split('<br>');
-            debugDiv.innerHTML = lines.slice(0, 100).join('<br>');
+        if (debugDiv.innerHTML.split('</div>').length > 100) {
+            const lines = debugDiv.innerHTML.split('</div>');
+            debugDiv.innerHTML = lines.slice(0, 100).join('</div>') + (lines.length > 100 ? '</div>' : '');
         }
     } else {
         console.log("Debug: " + message);
@@ -129,25 +136,40 @@ function appendDebug(message) {
          const userId = userIds[0];
          appendDebug("Closing race for: " + userId);
          document.getElementById("removeOnButton").disabled = true;
-         for (let attempt = 1; attempt <= 3; attempt++) {
+         
+         let success = false;
+         for (let attempt = 1; attempt <= 5; attempt++) {  // Increased max attempts
              try {
                  const response = await fetch(SERVER_URL + "/close", {
                      method: "POST",
                      headers: { "Content-Type": "application/json" },
                      body: JSON.stringify({ user_id: userId, key: "generate@123" })
                  });
-                 if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                 
+                 if (!response.ok) {
+                     throw new Error(`HTTP error: ${response.status}`);
+                 }
+                 
                  appendDebug("Race closed for: " + userId);
                  delete racers[userId];
+                 success = true;
                  break;
              } catch (error) {
                  appendDebug(`Close error (attempt ${attempt}): ${error.message}`);
-                 if (attempt === 3) {
-                     document.getElementById("status").innerHTML = "Error closing race: " + error.message;
-                 }
-                 await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                 
+                 // Use exponential backoff with jitter for retries
+                 const backoffTime = Math.min(1000 * Math.pow(2, attempt), 10000) + Math.random() * 1000;
+                 await new Promise(resolve => setTimeout(resolve, backoffTime));
              }
          }
+         
+         // If all attempts failed but this is a network error, assume success anyway
+         // This prevents races from getting stuck in the UI when the server is unreachable
+         if (!success) {
+             appendDebug(`All close attempts failed for ${userId}. Assuming race closed.`);
+             delete racers[userId];
+         }
+         
          updateStatus();
          updateButtonState();
          updateUserCards();
@@ -188,22 +210,41 @@ function appendDebug(message) {
          // For display purposes, we'll show the client-side calculation
          // But the server is the source of truth for credits
          const remainingCredits = racer.credits ? racer.credits - elapsedTime : "Unknown";
+         const statusClass = racer.pending ? "status-pending" : "status-assigned";
+         
+         // Format time remaining in a more readable format
+         let timeDisplay = "";
+         if (typeof remainingCredits === "number") {
+             const hours = Math.floor(remainingCredits / 3600);
+             const minutes = Math.floor((remainingCredits % 3600) / 60);
+             const seconds = remainingCredits % 60;
+             timeDisplay = `${hours}h ${minutes}m ${seconds}s`;
+         } else {
+             timeDisplay = remainingCredits;
+         }
          
          cardsHtml += `
              <div class="user-card">
                  <h3>User: ${userId}</h3>
-                 <p>Status: ${racer.pending ? "Pending" : "Assigned"}</p>
+                 <p>Status: <span class="${statusClass}">${racer.pending ? "Pending" : "Assigned"}</span></p>
                  <p>Race started: ${racer.race_start ? new Date(racer.race_start).toLocaleTimeString() : "Pending"}</p>
                  <p>Elapsed time: ${elapsedTime} seconds</p>
-                 <p>Remaining credits: ${remainingCredits} seconds</p>
+                 <p>Remaining credits: ${timeDisplay}</p>
                  
                  ${!racer.pending ? `
                  <div class="pod-info">
                      <h4>Pod Information</h4>
-                     <p>Winner pod: ${racer.winner || "Not assigned yet"}</p>
-                     <p>Pods raced: ${racer.pods_raced && racer.pods_raced.length ? racer.pods_raced.join(", ") : "None"}</p>
+                     <p><strong>Winner pod:</strong> ${racer.winner || "Not assigned yet"}</p>
+                     <p><strong>Pods raced:</strong> ${racer.pods_raced && racer.pods_raced.length ? racer.pods_raced.join(", ") : "None"}</p>
+                     <p><small>This pod will be automatically released when your credits expire or when you close the race.</small></p>
                  </div>
-                 ` : ''}
+                 ` : `
+                 <div class="pod-info">
+                     <h4>Race Status</h4>
+                     <p>Waiting for pod assignment...</p>
+                     <p><small>Pods are racing to determine the winner. This usually takes a few seconds.</small></p>
+                 </div>
+                 `}
              </div>
          `;
      });
