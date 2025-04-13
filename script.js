@@ -81,11 +81,50 @@ function appendDebug(message) {
      return false;
  }
  
+ async function createUser() {
+     /**
+      * Create a new user without starting a race.
+      */
+     const userIdInput = document.getElementById("createUserId").value.trim();
+     
+     try {
+         const response = await fetch(SERVER_URL + "/create_user", {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({
+                 key: "generate@123",
+                 user_id: userIdInput || undefined // Only send if not empty
+             })
+         });
+         
+         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+         
+         const data = await response.json();
+         appendDebug(`User created: ${data.user_id} with ${data.credits}s credits`);
+         
+         // Auto-fill the credit and race user ID fields
+         document.getElementById("creditUserId").value = data.user_id;
+         document.getElementById("raceUserId").value = data.user_id;
+         
+         return data.user_id;
+     } catch (error) {
+         appendDebug(`Error creating user: ${error.message}`);
+         return null;
+     }
+ }
+ 
  async function sendStartRequest() {
      /**
       * Send a race start request and poll for status.
       */
-     const userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+     const userIdInput = document.getElementById("raceUserId").value.trim();
+     
+     if (!userIdInput) {
+         appendDebug("Please enter a User ID or create a user first");
+         return;
+     }
+     
+     const userId = userIdInput;
      appendDebug("Starting race for: " + userId);
      racers[userId] = { race_start: null, pending: true, credits: 3600 }; // Default credits
      updateStatus();
@@ -315,9 +354,27 @@ function appendDebug(message) {
      /**
       * Initialize event listeners for buttons.
       */
+     document.getElementById("createUserButton").addEventListener("click", createUser);
      document.getElementById("startButton").addEventListener("click", sendStartRequest);
      document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
      document.getElementById("assignCreditsButton").addEventListener("click", assignCredits);
      updateButtonState();
      updateUserCards();
+     
+     // Add event listeners for Enter key in input fields
+     document.getElementById("createUserId").addEventListener("keypress", function(e) {
+         if (e.key === "Enter") createUser();
+     });
+     
+     document.getElementById("raceUserId").addEventListener("keypress", function(e) {
+         if (e.key === "Enter") sendStartRequest();
+     });
+     
+     document.getElementById("creditUserId").addEventListener("keypress", function(e) {
+         if (e.key === "Enter") document.getElementById("creditAmount").focus();
+     });
+     
+     document.getElementById("creditAmount").addEventListener("keypress", function(e) {
+         if (e.key === "Enter") assignCredits();
+     });
  });
