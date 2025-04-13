@@ -25,6 +25,19 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        
+        .control-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .control-group h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
         button {
             padding: 10px 20px;
             margin-right: 10px;
@@ -124,21 +137,31 @@
         <p>Each user is assigned a default of 3600 credits (1 hour). Credits are consumed at a rate of 1 per second while using a pod.</p>
     </div>
     
+    <!-- User management controls -->
     <div class="controls">
-        <h2>Race Controls</h2>
-        <!-- Button to start a race -->
-        <button id="startButton">Start Race</button>
-        <!-- Button to close a race -->
-        <button id="removeOnButton">Close Race</button>
-    </div>
-    
-    <!-- Credit assignment controls -->
-    <div class="credit-controls">
-        <h2>Assign Credits</h2>
-        <p>Assign credits to a specific user ID. Credits are measured in seconds of pod usage time.</p>
-        <input type="text" id="creditUserId" placeholder="User ID">
-        <input type="number" id="creditAmount" placeholder="Credits (seconds)" value="3600">
-        <button id="assignCreditsButton">Assign Credits</button>
+        <h2>User Management</h2>
+        <div class="control-group">
+            <h3>1. Create User</h3>
+            <p>Create a new user before starting a race.</p>
+            <input type="text" id="createUserId" placeholder="User ID (optional)">
+            <button id="createUserButton">Create User</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>2. Assign Credits</h3>
+            <p>Assign credits to a user. Credits are measured in seconds of pod usage time.</p>
+            <input type="text" id="creditUserId" placeholder="User ID">
+            <input type="number" id="creditAmount" placeholder="Credits (seconds)" value="3600">
+            <button id="assignCreditsButton">Assign Credits</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>3. Race Controls</h3>
+            <p>Start a race with a user who has credits assigned.</p>
+            <input type="text" id="raceUserId" placeholder="User ID">
+            <button id="startButton">Start Race</button>
+            <button id="removeOnButton">Close Race</button>
+        </div>
     </div>
     
     <!-- Display active races -->
