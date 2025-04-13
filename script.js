@@ -1,10 +1,14 @@
+/**
+ * Client-Side Logic for Pod Racer
+ *
+ * Handles race start/close requests and UI updates.
+ */
 const SERVER_URL = "https://u962699roq0mvb-9000.proxy.runpod.net";
 let racers = {};
 
 function appendDebug(message) {
     /**
-     * Append a debug message to the debug div or console.
-     * - Logs race events for troubleshooting (e.g., start, close, errors).
+     * Append a debug message to the UI or console.
      */
     const debugDiv = document.getElementById("debug");
     if (debugDiv) debugDiv.innerHTML += message + "<br>";
@@ -13,9 +17,7 @@ function appendDebug(message) {
 
 async function sendStartRequest() {
     /**
-     * Send a race start request to the server.
-     * - Generates unique user_id for each race.
-     * - Updates UI with race status (pending, assigned, or error).
+     * Send a race start request.
      */
     const userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     appendDebug("Starting race for: " + userId);
@@ -54,9 +56,8 @@ async function sendStartRequest() {
 
 async function sendCloseRequest() {
     /**
-     * Send a race close request to the server.
-     * - Disables Close button during request to prevent redundant calls (e.g., user_1744530577204_477 closed twice).
-     * - Re-enables button via updateButtonState after completion.
+     * Send a race close request.
+     * - Disables button during request to prevent duplicates.
      */
     const userIds = Object.keys(racers);
     appendDebug("Racers before close: " + userIds.join(", "));
@@ -87,27 +88,18 @@ async function sendCloseRequest() {
 }
 
 function updateStatus() {
-    /**
-     * Update the status div with active races.
-     * - Displays user IDs or "No active races" for clarity.
-     */
+    /** Update the status div. */
     const userIds = Object.keys(racers);
     document.getElementById("status").innerHTML = userIds.length > 0 ? userIds.join("<br>") : "No active races";
 }
 
 function updateButtonState() {
-    /**
-     * Enable/disable Close button based on active races.
-     * - Ensures button reflects current state, preventing invalid actions.
-     */
+    /** Enable/disable Close button. */
     document.getElementById("removeOnButton").disabled = Object.keys(racers).length === 0;
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    /**
-     * Initialize event listeners for buttons.
-     * - Sets up Start and Close button handlers on page load.
-     */
+    /** Initialize button event listeners. */
     document.getElementById("startButton").addEventListener("click", sendStartRequest);
     document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
     updateButtonState();
