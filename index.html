@@ -4,16 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pod Racer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        .user-card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        .user-card h3 {
+            margin-top: 0;
+        }
+        .user-card .pod-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e9e9e9;
+            border-radius: 3px;
+        }
+        .credit-controls {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f5f5f5;
+        }
+        #debug {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f5f5f5;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
 </head>
 <body>
-    <!-- Button to start a race -->
-    <button id="startButton">Start Race</button>
-    <!-- Button to close a race -->
-    <button id="removeOnButton">Close</button>
+    <h1>Pod Racer Dashboard</h1>
+    
+    <div class="controls">
+        <!-- Button to start a race -->
+        <button id="startButton">Start Race</button>
+        <!-- Button to close a race -->
+        <button id="removeOnButton">Close</button>
+    </div>
+    
+    <!-- Credit assignment controls -->
+    <div class="credit-controls">
+        <h2>Assign Credits</h2>
+        <input type="text" id="creditUserId" placeholder="User ID">
+        <input type="number" id="creditAmount" placeholder="Credits (seconds)" value="3600">
+        <button id="assignCreditsButton">Assign Credits</button>
+    </div>
+    
     <!-- Display active races -->
+    <h2>Active Races</h2>
+    <div id="userCards"></div>
     <div id="status"></div>
+    
     <!-- Display debug messages -->
+    <h2>Debug Log</h2>
     <div id="debug"></div>
+    
     <!-- Load client-side logic -->
     <script src="script.js"></script>
 </body>
