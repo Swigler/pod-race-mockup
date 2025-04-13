@@ -4,7 +4,7 @@ let racers = {};
 function appendDebug(message) {
     /**
      * Append a debug message to the debug div or console.
-     * - Unchanged, retains logging for troubleshooting.
+     * - Logs race events for troubleshooting (e.g., start, close, errors).
      */
     const debugDiv = document.getElementById("debug");
     if (debugDiv) debugDiv.innerHTML += message + "<br>";
@@ -14,7 +14,8 @@ function appendDebug(message) {
 async function sendStartRequest() {
     /**
      * Send a race start request to the server.
-     * - Unchanged, generates unique user_id and handles race initiation.
+     * - Generates unique user_id for each race.
+     * - Updates UI with race status (pending, assigned, or error).
      */
     const userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     appendDebug("Starting race for: " + userId);
@@ -54,8 +55,8 @@ async function sendStartRequest() {
 async function sendCloseRequest() {
     /**
      * Send a race close request to the server.
-     * - Disables Close button during request to prevent redundant calls.
-     * - Re-enables button after completion via updateButtonState.
+     * - Disables Close button during request to prevent redundant calls (e.g., user_1744530577204_477 closed twice).
+     * - Re-enables button via updateButtonState after completion.
      */
     const userIds = Object.keys(racers);
     appendDebug("Racers before close: " + userIds.join(", "));
@@ -88,7 +89,7 @@ async function sendCloseRequest() {
 function updateStatus() {
     /**
      * Update the status div with active races.
-     * - Unchanged, displays user IDs or "No active races."
+     * - Displays user IDs or "No active races" for clarity.
      */
     const userIds = Object.keys(racers);
     document.getElementById("status").innerHTML = userIds.length > 0 ? userIds.join("<br>") : "No active races";
@@ -97,7 +98,7 @@ function updateStatus() {
 function updateButtonState() {
     /**
      * Enable/disable Close button based on active races.
-     * - Ensures button reflects current state after each operation.
+     * - Ensures button reflects current state, preventing invalid actions.
      */
     document.getElementById("removeOnButton").disabled = Object.keys(racers).length === 0;
 }
@@ -105,7 +106,7 @@ function updateButtonState() {
 document.addEventListener("DOMContentLoaded", function() {
     /**
      * Initialize event listeners for buttons.
-     * - Unchanged, sets up Start and Close button handlers.
+     * - Sets up Start and Close button handlers on page load.
      */
     document.getElementById("startButton").addEventListener("click", sendStartRequest);
     document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
