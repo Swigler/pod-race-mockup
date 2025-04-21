@@ -1,176 +1,309 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pod Racer</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f7fa;
-            color: #333;
+/**
+ * Client-Side Logic for Pod Racer
+ *
+ * Handles pod assignment requests, status polling, and UI updates for multiple users.
+ */
+const SERVER_URL = "https://u962699roq0mvb-9000.proxy.runpod.net";
+let users = {};
+
+function appendDebug(message) {
+    /**
+     * Append a debug message to the UI or console.
+     */
+    const debugDiv = document.getElementById("debug");
+    if (debugDiv) {
+        const now = new Date();
+        const timestamp = now.toLocaleTimeString();
+        const formattedMessage = `<div><span class="timestamp">[${timestamp}]</span> ${message}</div>`;
+        debugDiv.innerHTML = formattedMessage + debugDiv.innerHTML;
+        if (debugDiv.innerHTML.split('</div>').length > 100) {
+            const lines = debugDiv.innerHTML.split('</div>');
+            debugDiv.innerHTML = lines.slice(0, 100).join('</div>') + (lines.length > 100 ? '</div>' : '');
         }
-        h1, h2 {
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
+    } else {
+        console.log("Debug: " + message);
+    }
+}
+
+async function pollPodStatus(userId) {
+    /**
+     * Poll the server for pod status until assigned or failed.
+     */
+    for (let attempt = 1; attempt <= 30; attempt++) {
+        try {
+            const response = await fetch(`${SERVER_URL}/status?user_id=${userId}`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" }
+            });
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            const data = await response.json();
+            if (data.status === "assigned") {
+                appendDebug(`Pod assigned for: ${userId}, Pod Type: ${data.pod_type}`);
+                users[userId] = {
+                    pod_start: Date.now(),
+                    pod_type: data.pod_type,
+                    pending: false,
+                    credits: data.credits_remaining || 3600
+                };
+                appendDebug(`Remaining credits: ${data.credits_remaining || 3600}s`);
+                updateUserCards();
+                return true;
+            } else if (data.status === "no_pod_assigned") {
+                appendDebug(`No pod available for: ${userId}`);
+                delete users[userId];
+                return false;
+            }
+            if (data.credits_remaining !== undefined && users[userId]) {
+                users[userId].credits = data.credits_remaining;
+                updateUserCards();
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+            appendDebug(`Status poll error (attempt ${attempt}): ${error.message}`);
+            if (attempt === 30) {
+                appendDebug(`Failed to get pod status for: ${userId}`);
+                delete users[userId];
+                return false;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         }
-        .controls {
-            margin-bottom: 20px;
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    return false;
+}
+
+async function createUser() {
+    /**
+     * Create a new user without starting a pod.
+     */
+    const userIdInput = document.getElementById("createUserId").value.trim();
+    try {
+        const response = await fetch(SERVER_URL + "/create_user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                key: "generate@123",
+                user_id: userIdInput || undefined
+            })
+        });
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        const data = await response.json();
+        appendDebug(`User created: ${data.user_id} with ${data.credits}s credits`);
+        document.getElementById("creditUserId").value = data.user_id;
+        document.getElementById("podUserId").value = data.user_id;
+        return data.user_id;
+    } catch (error) {
+        appendDebug(`Error creating user: ${error.message}`);
+        return null;
+    }
+}
+
+async function startPod() {
+    /**
+     * Send a pod assignment request and poll for status.
+     */
+    const userIdInput = document.getElementById("podUserId").value.trim();
+    if (!userIdInput) {
+        appendDebug("Please enter a User ID or create a user first");
+        return;
+    }
+    const userId = userIdInput;
+    appendDebug(`Starting pod assignment for: ${userId}`);
+    users[userId] = { pod_start: null, pending: true, credits: 3600 };
+    updateStatus();
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            const response = await fetch(SERVER_URL + "/start_pod", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId, key: "generate@123" })
+            });
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            const data = await response.json();
+            appendDebug("Pod assignment request received");
+            if (data.status === "assigned") {
+                if (data.credits && users[userId]) {
+                    users[userId].credits = data.credits;
+                    appendDebug(`Credits assigned: ${data.credits}s`);
+                }
+                await pollPodStatus(userId);
+            } else {
+                appendDebug(`Unexpected status for ${userId}: ${data.status}`);
+                delete users[userId];
+            }
+            break;
+        } catch (error) {
+            appendDebug(`Start error (attempt ${attempt}): ${error.message}`);
+            if (attempt === 3) {
+                document.getElementById("status").innerHTML = `Error starting pod: ${error.message}`;
+                delete users[userId];
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         }
-        .control-group {
-            margin-bottom: 20px;
-            padding: 15px;
-            border-left: 4px solid #3498db;
-            background-color: #f8f9fa;
-            border-radius: 4px;
+    }
+    updateStatus();
+    updateUserCards();
+}
+
+async function closePod(userId) {
+    /**
+     * Send a pod close request for a specific user.
+     */
+    if (!users[userId]) {
+        appendDebug(`No pod to close for: ${userId}`);
+        return;
+    }
+    appendDebug(`Closing pod for: ${userId}`);
+    let success = false;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+        try {
+            const response = await fetch(SERVER_URL + "/close", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId, key: "generate@123" })
+            });
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            appendDebug(`Pod closed for: ${userId}`);
+            delete users[userId];
+            success = true;
+            break;
+        } catch (error) {
+            appendDebug(`Close error (attempt ${attempt}): ${error.message}`);
+            const backoffTime = Math.min(1000 * Math.pow(2, attempt), 10000) + Math.random() * 1000;
+            await new Promise(resolve => setTimeout(resolve, backoffTime));
         }
-        .control-group h3 {
-            margin-top: 0;
-            color: #2c3e50;
+    }
+    if (!success) {
+        appendDebug(`All close attempts failed for ${userId}. Assuming pod closed.`);
+        delete users[userId];
+    }
+    updateStatus();
+    updateUserCards();
+}
+
+function updateStatus() {
+    /**
+     * Update the status div with active users.
+     */
+    const userIds = Object.keys(users);
+    document.getElementById("status").innerHTML = userIds.length > 0 ?
+        `${userIds.length} active user(s)` :
+        "No active users";
+}
+
+function updateUserCards() {
+    /**
+     * Update the user cards with detailed information.
+     */
+    const userCardsDiv = document.getElementById("userCards");
+    const userIds = Object.keys(users);
+    if (userIds.length === 0) {
+        userCardsDiv.innerHTML = "<p>No active users</p>";
+        return;
+    }
+    let cardsHtml = "";
+    userIds.forEach(userId => {
+        const user = users[userId];
+        const elapsedTime = user.pod_start ? Math.floor((Date.now() - user.pod_start) / 1000) : 0;
+        const remainingCredits = user.credits ? user.credits - elapsedTime : "Unknown";
+        const statusClass = user.pending ? "status-pending" : "status-assigned";
+        let timeDisplay = "";
+        if (typeof remainingCredits === "number") {
+            const hours = Math.floor(remainingCredits / 3600);
+            const minutes = Math.floor((remainingCredits % 3600) / 60);
+            const seconds = remainingCredits % 60;
+            timeDisplay = `${hours}h ${minutes}m ${seconds}s`;
+        } else {
+            timeDisplay = remainingCredits;
         }
-        button {
-            padding: 10px 20px;
-            margin-right: 10px;
-            cursor: pointer;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
-            transition: background-color 0.3s;
+        cardsHtml += `
+            <div class="user-card">
+                <h3>User: ${userId}</h3>
+                <p>Status: <span class="${statusClass}">${user.pending ? "Pending" : "Assigned"}</span></p>
+                <p>Pod started: ${user.pod_start ? new Date(user.pod_start).toLocaleTimeString() : "Pending"}</p>
+                <p>Elapsed time: ${elapsedTime} seconds</p>
+                <p>Remaining credits: ${timeDisplay}</p>
+                ${!user.pending ? `
+                <div class="pod-info">
+                    <h4>Pod Information</h4>
+                    <p><strong>Pod type:</strong> ${user.pod_type || "Not assigned yet"}</p>
+                    <p><small>This pod will be automatically released when your credits expire or when you close it.</small></p>
+                    <button onclick="closePod('${userId}')">Close Pod</button>
+                </div>
+                ` : `
+                <div class="pod-info">
+                    <h4>Pod Status</h4>
+                    <p>Waiting for pod assignment...</p>
+                    <p><small>The system is assigning a pod from the pool. This usually takes a few seconds.</small></p>
+                </div>
+                `}
+            </div>
+        `;
+    });
+    userCardsDiv.innerHTML = cardsHtml;
+}
+
+// Update user cards every second to show elapsed time and remaining credits
+setInterval(() => {
+    if (Object.keys(users).length > 0) {
+        updateUserCards();
+    }
+}, 1000);
+
+document.addEventListener("DOMContentLoaded", function() {
+    /**
+     * Initialize event listeners for buttons.
+     */
+    document.getElementById("createUserButton").addEventListener("click", createUser);
+    document.getElementById("startButton").addEventListener("click", startPod);
+    document.getElementById("assignCreditsButton").addEventListener("click", assignCredits);
+    updateUserCards();
+    document.getElementById("createUserId").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") createUser();
+    });
+    document.getElementById("podUserId").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") startPod();
+    });
+    document.getElementById("creditUserId").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") document.getElementById("creditAmount").focus();
+    });
+    document.getElementById("creditAmount").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") assignCredits();
+    });
+});
+
+async function assignCredits() {
+    /**
+     * Assign credits to a specific user.
+     */
+    const userId = document.getElementById("creditUserId").value.trim();
+    const credits = parseInt(document.getElementById("creditAmount").value);
+    if (!userId) {
+        appendDebug("Please enter a valid User ID");
+        return;
+    }
+    if (isNaN(credits) || credits <= 0) {
+        appendDebug("Please enter a valid credit amount");
+        return;
+    }
+    appendDebug(`Assigning ${credits} credits to user: ${userId}`);
+    try {
+        const response = await fetch(`${SERVER_URL}/assign_credits`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                user_id: userId,
+                credits: credits,
+                key: "generate@123"
+            })
+        });
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        const data = await response.json();
+        appendDebug(`Credits assigned: ${data.status}`);
+        if (userId in users) {
+            users[userId].credits = credits;
+            updateUserCards();
         }
-        button:hover {
-            background-color: #2980b9;
-        }
-        button:disabled {
-            background-color: #95a5a6;
-            cursor: not-allowed;
-        }
-        .user-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-        }
-        .user-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
-        .user-card h3 {
-            margin-top: 0;
-            color: #2c3e50;
-        }
-        .user-card .pod-info {
-            margin-top: 15px;
-            padding: 15px;
-            background-color: #f1f8ff;
-            border-radius: 6px;
-            border-left: 4px solid #3498db;
-        }
-        .status-pending {
-            color: #f39c12;
-            font-weight: bold;
-        }
-        .status-assigned {
-            color: #27ae60;
-            font-weight: bold;
-        }
-        .credit-controls {
-            margin: 20px 0;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .credit-controls input {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-right: 10px;
-        }
-        .info-panel {
-            background-color: #e8f4fc;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #3498db;
-        }
-        #debug {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background-color: #fff;
-            max-height: 300px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .timestamp {
-            color: #7f8c8d;
-            font-size: 10px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Pod Racer Dashboard</h1>
-    
-    <div class="info-panel">
-        <h3>How Pod Assignment Works</h3>
-        <p>When you start a pod assignment, the system selects a pod from the pool and assigns it to your user. The pod is started and ready for use.</p>
-        <p>Multiple users can be assigned pods simultaneously, limited only by available resources. If no pods are available, the system will attempt to create new ones.</p>
-        <p>Each user is assigned a default of 3600 credits (1 hour). Credits are consumed at a rate of 1 per second while using a pod.</p>
-    </div>
-    
-    <!-- User management controls -->
-    <div class="controls">
-        <h2>User Management</h2>
-        <div class="control-group">
-            <h3>1. Create User</h3>
-            <p>Create a new user before assigning a pod.</p>
-            <input type="text" id="createUserId" placeholder="User ID (optional)">
-            <button id="createUserButton">Create User</button>
-        </div>
-        
-        <div class="control-group">
-            <h3>2. Assign Credits</h3>
-            <p>Assign credits to a user. Credits are measured in seconds of pod usage time.</p>
-            <input type="text" id="creditUserId" placeholder="User ID">
-            <input type="number" id="creditAmount" placeholder="Credits (seconds)" value="3600">
-            <button id="assignCreditsButton">Assign Credits</button>
-        </div>
-        
-        <div class="control-group">
-            <h3>3. Pod Controls</h3>
-            <p>Start a pod assignment for a user with credits assigned.</p>
-            <input type="text" id="podUserId" placeholder="User ID">
-            <button id="startButton">Start Pod</button>
-        </div>
-    </div>
-    
-    <!-- Display active users -->
-    <h2>Active Users</h2>
-    <div id="userCards"></div>
-    <div id="status"></div>
-    
-    <!-- Display debug messages -->
-    <h2>Debug Log</h2>
-    <div id="debug"></div>
-    
-    <!-- Load client-side logic -->
-    <script src="script.js"></script>
-</body>
-</html>
+    } catch (error) {
+        appendDebug(`Error assigning credits: ${error.message}`);
+    }
+}
