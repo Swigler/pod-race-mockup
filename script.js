@@ -3,32 +3,29 @@
  *
  * Handles pod assignment requests, status polling, and UI updates for multiple users.
  */
-const SERVER_URL = "https://u962699roq0mvb-9000.proxy.runpod.net";
+const SERVER_URL = window.location.hostname === "localhost" ? "http://localhost:9000" : "https://u962699roq0mvb-9000.proxy.runpod.net";
+const API_KEY = "generate@123"; // Move to config or proxy in production
 let users = {};
 
 function appendDebug(message) {
-    /**
-     * Append a debug message to the UI or console.
-     */
     const debugDiv = document.getElementById("debug");
-    if (debugDiv) {
-        const now = new Date();
-        const timestamp = now.toLocaleTimeString();
-        const formattedMessage = `<div><span class="timestamp">[${timestamp}]</span> ${message}</div>`;
-        debugDiv.innerHTML = formattedMessage + debugDiv.innerHTML;
-        if (debugDiv.innerHTML.split('</div>').length > 100) {
-            const lines = debugDiv.innerHTML.split('</div>');
-            debugDiv.innerHTML = lines.slice(0, 100).join('</div>') + (lines.length > 100 ? '</div>' : '');
-        }
-    } else {
-        console.log("Debug: " + message);
+    const now = new Date();
+    const timestamp = now.toLocaleTimeString();
+    const formattedMessage = `<div><span class="timestamp">[${timestamp}]</span> ${message}</div>`;
+    debugDiv.innerHTML = formattedMessage + debugDiv.innerHTML;
+    if (debugDiv.innerHTML.split('</div>').length > 100) {
+        const lines = debugDiv.innerHTML.split('</div>');
+        debugDiv.innerHTML = lines.slice(0, 100).join('</div>') + (lines.length > 100 ? '</div>' : '');
     }
 }
 
+function showError(message) {
+    const statusDiv = document.getElementById("status");
+    statusDiv.innerHTML = `<span style="color: red;">Error: ${message}</span>`;
+    setTimeout(() => updateStatus(), 5000);
+}
+
 async function pollPodStatus(userId) {
-    /**
-     * Poll the server for pod status until assigned or failed.
-     */
     for (let attempt = 1; attempt <= 30; attempt++) {
         try {
             const response = await fetch(`${SERVER_URL}/status?user_id=${userId}`, {
@@ -51,18 +48,17 @@ async function pollPodStatus(userId) {
             } else if (data.status === "no_pod_assigned") {
                 appendDebug(`No pod available for: ${userId}`);
                 delete users[userId];
-                return false;
-            }
-            if (data.credits_remaining !== undefined && users[userId]) {
-                users[userId].credits = data.credits_remaining;
                 updateUserCards();
+                return false;
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
             appendDebug(`Status poll error (attempt ${attempt}): ${error.message}`);
             if (attempt === 30) {
                 appendDebug(`Failed to get pod status for: ${userId}`);
+                showError(`Failed to get pod status for ${userId}`);
                 delete users[userId];
+                updateUserCards();
                 return false;
             }
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
@@ -71,17 +67,38 @@ async function pollPodStatus(userId) {
     return false;
 }
 
+async function periodicStatusPoll() {
+    const userIds = Object.keys(users);
+    for (const userId of userIds) {
+        try {
+            const response = await fetch(`${SERVER_URL}/status?user_id=${userId}`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" }
+            });
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            const data = await response.json();
+            if (data.status === "assigned" && users[userId]) {
+                users[userId].credits = data.credits_remaining || users[userId].credits;
+                users[userId].pod_type = data.pod_type || users[userId].pod_type;
+            } else if (data.status === "no_pod_assigned") {
+                appendDebug(`Pod terminated for: ${userId} (likely credits expired)`);
+                delete users[userId];
+            }
+            updateUserCards();
+        } catch (error) {
+            appendDebug(`Periodic status poll error for ${userId}: ${error.message}`);
+        }
+    }
+}
+
 async function createUser() {
-    /**
-     * Create a new user without starting a pod.
-     */
     const userIdInput = document.getElementById("createUserId").value.trim();
     try {
-        const response = await fetch(SERVER_URL + "/create_user", {
+        const response = await fetch(`${SERVER_URL}/create_user`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                key: "generate@123",
+                key: API_KEY,
                 user_id: userIdInput || undefined
             })
         });
@@ -93,17 +110,16 @@ async function createUser() {
         return data.user_id;
     } catch (error) {
         appendDebug(`Error creating user: ${error.message}`);
+        showError(`Failed to create user: ${error.message}`);
         return null;
     }
 }
 
 async function startPod() {
-    /**
-     * Send a pod assignment request and poll for status.
-     */
     const userIdInput = document.getElementById("podUserId").value.trim();
     if (!userIdInput) {
         appendDebug("Please enter a User ID or create a user first");
+        showError("Please enter a User ID or create a user first");
         return;
     }
     const userId = userIdInput;
@@ -112,10 +128,10 @@ async function startPod() {
     updateStatus();
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            const response = await fetch(SERVER_URL + "/start_pod", {
+            const response = await fetch(`${SERVER_URL}/start_pod`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: userId, key: "generate@123" })
+                body: JSON.stringify({ user_id: userId, key: API_KEY })
             });
             if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
             const data = await response.json();
@@ -134,7 +150,7 @@ async function startPod() {
         } catch (error) {
             appendDebug(`Start error (attempt ${attempt}): ${error.message}`);
             if (attempt === 3) {
-                document.getElementById("status").innerHTML = `Error starting pod: ${error.message}`;
+                showError(`Failed to start pod: ${error.message}`);
                 delete users[userId];
             }
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
@@ -145,9 +161,6 @@ async function startPod() {
 }
 
 async function closePod(userId) {
-    /**
-     * Send a pod close request for a specific user.
-     */
     if (!users[userId]) {
         appendDebug(`No pod to close for: ${userId}`);
         return;
@@ -156,10 +169,10 @@ async function closePod(userId) {
     let success = false;
     for (let attempt = 1; attempt <= 5; attempt++) {
         try {
-            const response = await fetch(SERVER_URL + "/close", {
+            const response = await fetch(`${SERVER_URL}/close`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: userId, key: "generate@123" })
+                body: JSON.stringify({ user_id: userId, key: API_KEY })
             });
             if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
             appendDebug(`Pod closed for: ${userId}`);
@@ -181,9 +194,6 @@ async function closePod(userId) {
 }
 
 function updateStatus() {
-    /**
-     * Update the status div with active users.
-     */
     const userIds = Object.keys(users);
     document.getElementById("status").innerHTML = userIds.length > 0 ?
         `${userIds.length} active user(s)` :
@@ -191,9 +201,6 @@ function updateStatus() {
 }
 
 function updateUserCards() {
-    /**
-     * Update the user cards with detailed information.
-     */
     const userCardsDiv = document.getElementById("userCards");
     const userIds = Object.keys(users);
     if (userIds.length === 0) {
@@ -204,13 +211,13 @@ function updateUserCards() {
     userIds.forEach(userId => {
         const user = users[userId];
         const elapsedTime = user.pod_start ? Math.floor((Date.now() - user.pod_start) / 1000) : 0;
-        const remainingCredits = user.credits ? user.credits - elapsedTime : "Unknown";
+        const remainingCredits = user.credits !== undefined ? user.credits : "Unknown";
         const statusClass = user.pending ? "status-pending" : "status-assigned";
         let timeDisplay = "";
         if (typeof remainingCredits === "number") {
             const hours = Math.floor(remainingCredits / 3600);
             const minutes = Math.floor((remainingCredits % 3600) / 60);
-            const seconds = remainingCredits % 60;
+            const seconds = Math.floor(remainingCredits % 60);
             timeDisplay = `${hours}h ${minutes}m ${seconds}s`;
         } else {
             timeDisplay = remainingCredits;
@@ -222,37 +229,33 @@ function updateUserCards() {
                 <p>Pod started: ${user.pod_start ? new Date(user.pod_start).toLocaleTimeString() : "Pending"}</p>
                 <p>Elapsed time: ${elapsedTime} seconds</p>
                 <p>Remaining credits: ${timeDisplay}</p>
-                ${!user.pending ? `
                 <div class="pod-info">
-                    <h4>Pod Information</h4>
-                    <p><strong>Pod type:</strong> ${user.pod_type || "Not assigned yet"}</p>
-                    <p><small>This pod will be automatically released when your credits expire or when you close it.</small></p>
-                    <button onclick="closePod('${userId}')">Close Pod</button>
+                    <h4>Pod ${user.pending ? "Status" : "Information"}</h4>
+                    ${user.pending ? `
+                        <p>Waiting for pod assignment...</p>
+                        <p><small>The system is assigning a pod from the pool. This usually takes a few seconds.</small></p>
+                        <button onclick="closePod('${userId}')">Cancel Assignment</button>
+                    ` : `
+                        <p><strong>Pod type:</strong> ${user.pod_type || "Not assigned yet"}</p>
+                        <p><small>This pod will be automatically released when your credits expire or when you close it.</small></p>
+                        <button onclick="closePod('${userId}')">Close Pod</button>
+                    `}
                 </div>
-                ` : `
-                <div class="pod-info">
-                    <h4>Pod Status</h4>
-                    <p>Waiting for pod assignment...</p>
-                    <p><small>The system is assigning a pod from the pool. This usually takes a few seconds.</small></p>
-                </div>
-                `}
             </div>
         `;
     });
     userCardsDiv.innerHTML = cardsHtml;
 }
 
-// Update user cards every second to show elapsed time and remaining credits
+// Update user cards every second
 setInterval(() => {
     if (Object.keys(users).length > 0) {
         updateUserCards();
+        periodicStatusPoll();
     }
 }, 1000);
 
 document.addEventListener("DOMContentLoaded", function() {
-    /**
-     * Initialize event listeners for buttons.
-     */
     document.getElementById("createUserButton").addEventListener("click", createUser);
     document.getElementById("startButton").addEventListener("click", startPod);
     document.getElementById("assignCreditsButton").addEventListener("click", assignCredits);
@@ -272,17 +275,16 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 async function assignCredits() {
-    /**
-     * Assign credits to a specific user.
-     */
     const userId = document.getElementById("creditUserId").value.trim();
     const credits = parseInt(document.getElementById("creditAmount").value);
     if (!userId) {
         appendDebug("Please enter a valid User ID");
+        showError("Please enter a valid User ID");
         return;
     }
     if (isNaN(credits) || credits <= 0) {
         appendDebug("Please enter a valid credit amount");
+        showError("Please enter a valid credit amount");
         return;
     }
     appendDebug(`Assigning ${credits} credits to user: ${userId}`);
@@ -293,17 +295,18 @@ async function assignCredits() {
             body: JSON.stringify({
                 user_id: userId,
                 credits: credits,
-                key: "generate@123"
+                key: API_KEY
             })
         });
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         const data = await response.json();
         appendDebug(`Credits assigned: ${data.status}`);
         if (userId in users) {
-            users[userId].credits = credits;
+            users[userId].credits = data.credits;
             updateUserCards();
         }
     } catch (error) {
         appendDebug(`Error assigning credits: ${error.message}`);
+        showError(`Failed to assign credits: ${error.message}`);
     }
 }
