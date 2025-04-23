@@ -25,6 +25,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        
         .control-group {
             margin-bottom: 20px;
             padding: 15px;
@@ -32,6 +33,7 @@
             background-color: #f8f9fa;
             border-radius: 4px;
         }
+        
         .control-group h3 {
             margin-top: 0;
             color: #2c3e50;
@@ -128,10 +130,17 @@
 <body>
     <h1>Pod Racer Dashboard</h1>
     
+    <div class="backend-config" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #ddd;">
+        <h3>Backend Configuration</h3>
+        <p>Configure the URL of your backend API server:</p>
+        <input type="text" id="backendUrl" value="http://localhost:9000" style="width: 80%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <button id="updateUrlButton" style="margin-left: 10px; padding: 8px 16px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Update URL</button>
+    </div>
+    
     <div class="info-panel">
-        <h3>How Pod Assignment Works</h3>
-        <p>When you start a pod assignment, the system selects a pod from the pool and assigns it to your user. The pod is started and ready for use.</p>
-        <p>Multiple users can be assigned pods simultaneously, limited only by available resources. If no pods are available, the system will attempt to create new ones.</p>
+        <h3>How Pod Racing Works</h3>
+        <p>When you start a race, the system selects pods from the pool and races them. The first pod to complete initialization becomes the winner and is assigned to you.</p>
+        <p>If multiple users start races at the same time (within 1 second), they'll race together. The system can handle up to 3 winners per race.</p>
         <p>Each user is assigned a default of 3600 credits (1 hour). Credits are consumed at a rate of 1 per second while using a pod.</p>
     </div>
     
@@ -140,7 +149,7 @@
         <h2>User Management</h2>
         <div class="control-group">
             <h3>1. Create User</h3>
-            <p>Create a new user before assigning a pod.</p>
+            <p>Create a new user before starting a race.</p>
             <input type="text" id="createUserId" placeholder="User ID (optional)">
             <button id="createUserButton">Create User</button>
         </div>
@@ -154,15 +163,16 @@
         </div>
         
         <div class="control-group">
-            <h3>3. Pod Controls</h3>
-            <p>Start a pod assignment for a user with credits assigned.</p>
-            <input type="text" id="podUserId" placeholder="User ID">
-            <button id="startButton">Start Pod</button>
+            <h3>3. Race Controls</h3>
+            <p>Start a race with a user who has credits assigned.</p>
+            <input type="text" id="raceUserId" placeholder="User ID">
+            <button id="startButton">Start Race</button>
+            <button id="removeOnButton">Close Race</button>
         </div>
     </div>
     
-    <!-- Display active users -->
-    <h2>Active Users</h2>
+    <!-- Display active races -->
+    <h2>Active Races</h2>
     <div id="userCards"></div>
     <div id="status"></div>
     
