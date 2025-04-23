@@ -4,7 +4,7 @@
  * Handles race start/close requests and UI updates, polling for race status.
  */
  // Set this to your backend server URL
- let SERVER_URL = "http://localhost:9000";
+ let SERVER_URL = "https://u962699roq0mvb-6901.proxy.runpod.net/";
  
  // Function to update the SERVER_URL
  function setServerUrl(url) {
