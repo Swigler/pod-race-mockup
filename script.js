@@ -80,6 +80,10 @@ async function periodicStatusPoll() {
             if (data.status === "assigned" && users[userId]) {
                 users[userId].credits = data.credits_remaining || users[userId].credits;
                 users[userId].pod_type = data.pod_type || users[userId].pod_type;
+                if (data.credits_remaining <= 0) {
+                    appendDebug(`Credits expired for: ${userId}`);
+                    delete users[userId];
+                }
             } else if (data.status === "no_pod_assigned") {
                 appendDebug(`Pod terminated for: ${userId} (likely credits expired)`);
                 delete users[userId];
@@ -102,7 +106,10 @@ async function createUser() {
                 user_id: userIdInput || undefined
             })
         });
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error: ${response.status}`);
+        }
         const data = await response.json();
         appendDebug(`User created: ${data.user_id} with ${data.credits}s credits`);
         document.getElementById("creditUserId").value = data.user_id;
@@ -123,6 +130,11 @@ async function startPod() {
         return;
     }
     const userId = userIdInput;
+    if (users[userId]) {
+        appendDebug(`User ${userId} already has a pod or is pending`);
+        showError(`User ${userId} already has a pod or is pending`);
+        return;
+    }
     appendDebug(`Starting pod assignment for: ${userId}`);
     users[userId] = { pod_start: null, pending: true, credits: 3600 };
     updateStatus();
@@ -133,7 +145,10 @@ async function startPod() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ user_id: userId, key: API_KEY })
             });
-            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP error: ${response.status}`);
+            }
             const data = await response.json();
             appendDebug("Pod assignment request received");
             if (data.status === "assigned") {
@@ -141,6 +156,7 @@ async function startPod() {
                     users[userId].credits = data.credits;
                     appendDebug(`Credits assigned: ${data.credits}s`);
                 }
+                await new Promise(resolve => setTimeout(resolve, 5000)); // Delay polling
                 await pollPodStatus(userId);
             } else {
                 appendDebug(`Unexpected status for ${userId}: ${data.status}`);
@@ -247,13 +263,13 @@ function updateUserCards() {
     userCardsDiv.innerHTML = cardsHtml;
 }
 
-// Update user cards every second
+// Update user cards every 500ms
 setInterval(() => {
     if (Object.keys(users).length > 0) {
         updateUserCards();
         periodicStatusPoll();
     }
-}, 1000);
+}, 500);
 
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("createUserButton").addEventListener("click", createUser);
@@ -298,7 +314,10 @@ async function assignCredits() {
                 key: API_KEY
             })
         });
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error: ${response.status}`);
+        }
         const data = await response.json();
         appendDebug(`Credits assigned: ${data.status}`);
         if (userId in users) {
