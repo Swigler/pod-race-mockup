@@ -4,7 +4,72 @@
  * Handles race start/close requests and UI updates, polling for race status.
  */
  // Set this to your backend server URL
- const SERVER_URL = "https://u962699roq0mvb-9000.proxy.runpod.net";
+ let SERVER_URL = "https://u962699roq0mvb-9000.proxy.runpod.net";
+ 
+ // Function to update the SERVER_URL
+ function setServerUrl(url) {
+     if (!url || typeof url !== 'string' || !url.trim()) {
+         appendDebug("Invalid URL provided");
+         return false;
+     }
+     
+     SERVER_URL = url.trim();
+     console.log(`Backend URL updated to: ${SERVER_URL}`);
+     appendDebug(`Backend URL updated to: ${SERVER_URL}`);
+     
+     // Update the display
+     const urlDisplay = document.getElementById("currentBackendUrl");
+     if (urlDisplay) {
+         urlDisplay.textContent = SERVER_URL;
+     }
+     
+     // Check connection with new URL
+     checkBackendConnection();
+     
+     return true;
+ }
+ 
+ // Function to check if the backend is reachable
+ async function checkBackendConnection() {
+     try {
+         appendDebug("Checking backend connection...");
+         const response = await fetch(`${SERVER_URL}/status?user_id=test`, createFetchOptions("GET"));
+         
+         if (response.ok) {
+             appendDebug("Backend connection successful!");
+             return true;
+         } else {
+             appendDebug(`Backend connection failed: HTTP ${response.status}`);
+             return false;
+         }
+     } catch (error) {
+         appendDebug(`Backend connection error: ${error.message}`);
+         return false;
+     }
+ }
+ 
+ // Check connection on page load
+ document.addEventListener("DOMContentLoaded", function() {
+     checkBackendConnection();
+ });
+ 
+ // Helper function to create fetch options with CORS headers
+ function createFetchOptions(method, body = null) {
+     const options = {
+         method: method,
+         headers: {
+             "Content-Type": "application/json",
+             "Access-Control-Allow-Origin": "*"
+         },
+         mode: "cors"
+     };
+     
+     if (body) {
+         options.body = JSON.stringify(body);
+     }
+     
+     return options;
+ }
  let racers = {};
  
  function appendDebug(message) {
@@ -37,10 +102,7 @@
        * Check if a user is in the queue
        */
       try {
-          const response = await fetch(`${SERVER_URL}/queue_status?user_id=${userId}`, {
-              method: "GET",
-              headers: { "Content-Type": "application/json" }
-          });
+          const response = await fetch(`${SERVER_URL}/queue_status?user_id=${userId}`, createFetchOptions("GET"));
           
           if (!response.ok) {
               // If the endpoint doesn't exist, just return null
@@ -70,10 +132,7 @@
        */
       for (let attempt = 1; attempt <= 30; attempt++) {
           try {
-              const response = await fetch(`${SERVER_URL}/status?user_id=${userId}`, {
-                  method: "GET",
-                  headers: { "Content-Type": "application/json" }
-              });
+              const response = await fetch(`${SERVER_URL}/status?user_id=${userId}`, createFetchOptions("GET"));
               if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
               const data = await response.json();
               if (data.status === "assigned") {
@@ -156,14 +215,10 @@
       const userIdInput = document.getElementById("createUserId").value.trim();
       
       try {
-          const response = await fetch(SERVER_URL + "/create_user", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                  key: "generate@123",
-                  user_id: userIdInput || undefined // Only send if not empty
-              })
-          });
+          const response = await fetch(SERVER_URL + "/create_user", createFetchOptions("POST", {
+              key: "generate@123",
+              user_id: userIdInput || undefined // Only send if not empty
+          }));
           
           if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
           
@@ -199,11 +254,10 @@
       updateButtonState();
       for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-              const response = await fetch(SERVER_URL + "/start_race", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ user_id: userId, key: "generate@123" })
-              });
+              const response = await fetch(SERVER_URL + "/start_pod", createFetchOptions("POST", {
+                  user_id: userId,
+                  key: "generate@123"
+              }));
               if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
               const data = await response.json();
               appendDebug("Start response received");
@@ -269,11 +323,10 @@
           let success = false;
           for (let attempt = 1; attempt <= 5; attempt++) {  // Increased max attempts
               try {
-                  const response = await fetch(SERVER_URL + "/close", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ user_id: userId, key: "generate@123" })
-                  });
+                  const response = await fetch(SERVER_URL + "/close", createFetchOptions("POST", {
+                      user_id: userId,
+                      key: "generate@123"
+                  }));
                   
                   if (!response.ok) {
                       throw new Error(`HTTP error: ${response.status}`);
@@ -428,15 +481,11 @@
       appendDebug(`Assigning ${credits} credits to user: ${userId}`);
       
       try {
-          const response = await fetch(`${SERVER_URL}/assign_credits`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                  user_id: userId,
-                  credits: credits,
-                  key: "generate@123"
-              })
-          });
+          const response = await fetch(`${SERVER_URL}/assign_credits`, createFetchOptions("POST", {
+              user_id: userId,
+              credits: credits,
+              key: "generate@123"
+          }));
           
           if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
           
@@ -468,12 +517,30 @@
       document.getElementById("startButton").addEventListener("click", sendStartRequest);
       document.getElementById("removeOnButton").addEventListener("click", sendCloseRequest);
       document.getElementById("assignCreditsButton").addEventListener("click", assignCredits);
+      document.getElementById("checkConnectionButton").addEventListener("click", checkBackendConnection);
+      
+      // Add event listener for the update URL button
+      document.getElementById("updateUrlButton").addEventListener("click", function() {
+          const newUrl = document.getElementById("backendUrl").value;
+          setServerUrl(newUrl);
+      });
+      
+      // Update the current backend URL display
+      document.getElementById("currentBackendUrl").textContent = SERVER_URL;
+      
       updateButtonState();
       updateUserCards();
       
       // Add event listeners for Enter key in input fields
       document.getElementById("createUserId").addEventListener("keypress", function(e) {
           if (e.key === "Enter") createUser();
+      });
+      
+      document.getElementById("backendUrl").addEventListener("keypress", function(e) {
+          if (e.key === "Enter") {
+              const newUrl = document.getElementById("backendUrl").value;
+              setServerUrl(newUrl);
+          }
       });
       
       document.getElementById("raceUserId").addEventListener("keypress", function(e) {
