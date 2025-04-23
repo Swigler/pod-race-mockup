@@ -130,6 +130,16 @@
 <body>
     <h1>Pod Racer Dashboard</h1>
     
+    <div class="backend-status" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #ddd;">
+        <h3>Backend Connection</h3>
+        <p>Current backend URL: <span id="currentBackendUrl"></span></p>
+        <div style="margin-top: 10px; display: flex; align-items: center;">
+            <input type="text" id="backendUrl" placeholder="Enter new backend URL" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <button id="updateUrlButton" style="margin-left: 10px; padding: 8px 16px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Update URL</button>
+        </div>
+        <button id="checkConnectionButton" style="margin-top: 10px; padding: 8px 16px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Check Connection</button>
+    </div>
+    
     <div class="info-panel">
         <h3>How Pod Racing Works</h3>
         <p>When you start a race, the system selects pods from the pool and races them. The first pod to complete initialization becomes the winner and is assigned to you.</p>
